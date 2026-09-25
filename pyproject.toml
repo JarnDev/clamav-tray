@@ -24,7 +24,7 @@ dependencies = []
 clamav-tray = "clamav_tray.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/jarndev-ltda/clamav-tray"
+Homepage = "https://github.com/JarnDev/clamav-tray"
 
 [tool.setuptools]
 packages = ["clamav_tray"]
