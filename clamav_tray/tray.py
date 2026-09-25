@@ -37,10 +37,14 @@ from . import i18n  # noqa: E402
 from .i18n import _  # noqa: E402
 from .scan import Verdict  # noqa: E402
 
+# Um escudo parado nao diz o que esta acontecendo. Durante a varredura o icone
+# vira LUPA e o indicador ganha um rotulo com o tempo decorrido — texto ao lado do
+# icone comunica "trabalhando" melhor que qualquer desenho, e ainda informa quanto.
 ICONS = {
-    "ok": "security-high-symbolic",
-    "busy": "security-medium-symbolic",
-    "warn": "security-low-symbolic",
+    "ok": "security-high-symbolic",       # escudo: protegido
+    "busy": "system-search-symbolic",     # lupa: procurando
+    "warn": "security-medium-symbolic",   # escudo parcial: servico caido
+    "threat": "security-low-symbolic",    # escudo rompido: ameaca
 }
 
 # Duracao tipica de uma varredura completa, so para dar forma a barra quando ha
@@ -96,7 +100,7 @@ class Tray:
         # pode ser escondida por uma varredura em andamento.
         broken = [u for u in state.values() if not u.is_healthy]
         if result.is_alarming:
-            key, mark = "warn", widgets.BAD
+            key, mark = "threat", widgets.BAD
         elif running or loose_scan:
             key, mark = "busy", widgets.BUSY
         elif broken:
@@ -105,10 +109,22 @@ class Tray:
             key, mark = "ok", widgets.OK
 
         self.indicator.set_icon_full(ICONS[key], "ClamAV")
+        self.indicator.set_label(self._indicator_label(running, loose_scan, result), "")
         self.indicator.set_menu(
             self._build_menu(state, running, broken, result, mark, loose_scan)
         )
         return True  # mantem o timer vivo
+
+    def _indicator_label(self, running, loose_scan, result) -> str:
+        """Texto ao lado do icone na barra. Vazio em repouso — indicador que fala o
+        tempo todo vira ruido; o que fala so quando ha o que dizer, e lido."""
+        if result.is_alarming:
+            return f"⚠ {result.infected}"
+        if running and (secs := running[0].elapsed_secs):
+            return scan.human_duration(secs)
+        if running or loose_scan:
+            return "…"
+        return ""
 
     def _headline(self, running, broken, result, loose=False) -> tuple[str, str]:
         if result.is_alarming:
@@ -192,6 +208,15 @@ class Tray:
             menu.append(widgets.status_row(_("Quarantine"), value, mark,
                                            str(self.cfg.quarantine)))
 
+        if self.cfg.user_quarantine:
+            n = config_mod.quarantine_count(self.cfg.user_quarantine)
+            # So aparece quando tem algo dentro: diretorio vazio nao merece linha.
+            if n:
+                menu.append(widgets.status_row(
+                    _("Quarantine (mine)"),
+                    _("{n} file" if n == 1 else "{n} files", n=n),
+                    widgets.WARN, str(self.cfg.user_quarantine)))
+
         if not history.journal_readable() and self.cfg.scan_log is None:
             menu.append(
                 widgets.status_row(
@@ -202,9 +227,19 @@ class Tray:
 
         # --- acoes -------------------------------------------------------
         menu.append(widgets.separator())
-        menu.append(
-            widgets.action(_("Scan my home now"), "media-playback-start-symbolic", self._on_scan)
-        )
+        if running:
+            # Varredura lancada por nos: da para parar, entao o botao VIRA parar.
+            menu.append(widgets.action(
+                _("Stop scan"), "media-playback-stop-symbolic", self._on_stop))
+        elif loose_scan:
+            # Varredura de fora: sabemos que existe, mas nao e nossa para interromper.
+            item = widgets.action(
+                _("Scan my home now"), "media-playback-start-symbolic", lambda *_a: None)
+            item.set_sensitive(False)
+            menu.append(item)
+        else:
+            menu.append(widgets.action(
+                _("Scan my home now"), "media-playback-start-symbolic", self._on_scan))
         if self.cfg.quarantine:
             menu.append(widgets.action(_("List quarantine"), "folder-symbolic", self._on_quarantine))
         if self.cfg.scan_log or self.cfg.log_file:
@@ -233,7 +268,14 @@ class Tray:
     # --------------------------------------------------------------- acoes
 
     def _on_scan(self, *_a):
-        actions.start_scan(Path.home(), self.cfg.socket, self.cfg.quarantine)
+        # A varredura sob demanda usa a quarentena do USUARIO: a do sistema e de
+        # root e ela roda como voce. Sem destino gravavel o clamdscan aborta.
+        dest = config_mod.ensure_user_quarantine(self.cfg.user_quarantine) \
+            if self.cfg.user_quarantine else None
+        actions.start_scan(Path.home(), self.cfg.socket, dest)
+
+    def _on_stop(self, *_a):
+        actions.stop_scan()
 
     def _on_quarantine(self, *_a):
         actions.list_quarantine(self.cfg.quarantine, self.cfg.terminal)

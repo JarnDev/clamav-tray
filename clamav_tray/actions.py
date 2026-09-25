@@ -61,20 +61,49 @@ def run_in_terminal(command: str, preferred: str | None = None) -> bool:
 TRANSIENT_UNIT = "clamav-tray-scan"
 
 
+def can_quarantine(quarantine: Path | None) -> bool:
+    """Se ESTE usuario consegue mover arquivo para a quarentena.
+
+    Quase sempre False, e por bom motivo: a quarentena e `750` dono root. A
+    varredura agendada roda como root e move; a sob demanda roda como voce e nao.
+    """
+    return bool(quarantine and os.access(quarantine, os.W_OK | os.X_OK))
+
+
 def scan_argv(target: Path, socket: Path | None, quarantine: Path | None) -> list[str]:
     """Varredura sob demanda, preferindo o daemon.
 
     clamscan recarrega ~1 GB de assinaturas a cada execucao e varre em thread
     unica; com o clamd no ar, usa-lo e pagar duas vezes pela mesma base.
+
+    `--move` SO entra se o usuario puder escrever na quarentena. Passa-lo sem
+    permissao nao degrada: o clamdscan ABORTA antes de varrer um unico arquivo,
+    com "Failed to create quarantine lock file ... Permission denied" e status 2.
+    Medido — a varredura de 771 MB terminou em 0,000s sem olhar nada.
+
+    Sem `--move` a varredura vira DETECCAO: ela aponta o que achou e nao move nada.
+    Quem move e a varredura agendada, que roda como root.
     """
     if socket and socket.exists() and shutil.which("clamdscan"):
         argv = ["clamdscan", "--fdpass", "-i"]
     else:
         argv = ["clamscan", "-r", "-i"]
-    if quarantine:
+    if can_quarantine(quarantine):
         argv.append(f"--move={quarantine}")
     argv.append(str(target))
     return argv
+
+
+def stop_scan() -> bool:
+    """Interrompe a varredura sob demanda."""
+    try:
+        subprocess.run(
+            ["systemctl", "--user", "stop", f"{TRANSIENT_UNIT}.service"],
+            capture_output=True, timeout=15, check=False,
+        )
+        return True
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 def start_scan(target: Path, socket: Path | None, quarantine: Path | None) -> bool:

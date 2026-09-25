@@ -39,6 +39,7 @@ CATALOGS: dict[str, dict[str, str]] = {
         "Next": "Próxima",
         "History": "Histórico",
         "Quarantine": "Quarentena",
+        "Quarantine (mine)": "Quarentena (minha)",
         "empty": "vazia",
         "{n} file": "{n} arquivo",
         "{n} files": "{n} arquivos",
@@ -58,6 +59,7 @@ CATALOGS: dict[str, dict[str, str]] = {
         "{n} unreadable files": "{n} arquivos ilegíveis",
         # Acoes
         "Scan my home now": "Varrer minha home agora",
+        "Stop scan": "Parar varredura",
         "List quarantine": "Listar quarentena",
         "View logs": "Ver logs",
         "Settings": "Configurações",
