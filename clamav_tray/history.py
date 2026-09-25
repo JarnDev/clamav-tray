@@ -52,13 +52,24 @@ def from_journal(unit_id: str, lines: int = 400, user: bool = False) -> str | No
 
 
 def last_summary(
-    log_file: Path | None, unit_id: str | None, user: bool = False
+    log_file: Path | None,
+    unit_id: str | None,
+    user: bool = False,
+    output: Path | None = None,
 ) -> str | None:
     """Ultimo trecho que possa conter um SCAN SUMMARY, da fonte que responder.
 
-    Ordem importa: a varredura sob demanda (unidade do usuario) e mais recente que
-    o log da agendada, entao quando ela existe o journal dela vem primeiro.
+    `output` vem PRIMEIRO quando dado. E o arquivo para onde a varredura sob
+    demanda redireciona a saida — redirecionamento que existe para a barra de
+    progresso poder contar linhas.
+
+    Sem este parametro havia um buraco silencioso: desde que a saida passou a ir
+    para arquivo, o journal da unidade ficou vazio, e o tray caia no log da
+    varredura AGENDADA. Uma ameaca encontrada sob demanda nao acendia o icone —
+    ele mostrava, tranquilo, o veredito de outra varredura.
     """
+    if output and (text := from_log_file(output)):
+        return _tail_after_last_summary(text)
     if user and unit_id and (text := from_journal(unit_id, user=True)):
         return _tail_after_last_summary(text)
     if text := from_log_file(log_file):

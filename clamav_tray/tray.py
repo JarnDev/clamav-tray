@@ -110,6 +110,8 @@ class Tray:
                 self.cfg.scan_log,
                 job.id if job else None,
                 user=bool(job and job.user_scope),
+                # A sob demanda escreve em arquivo, nao no journal.
+                output=progress.output_path() if job and job.user_scope else None,
             ) or ""
         )
         if result.duration_secs:
@@ -359,68 +361,45 @@ class Tray:
         return widgets.status_row(
             label, "", widgets.OK if unit.is_healthy else widgets.WARN)
 
-    def _idle_card(self, state, broken, result, mark) -> list:
-        # O bloco de topo usa a varredura COMPLETA, e as duas linhas saem da MESMA
-        # unidade. Antes o horario vinha da agendada e o veredito da sob demanda:
-        # "Ultima varredura hoje 07:42 / Limpa (4s)" descrevia duas varreduras
-        # diferentes como se fossem uma.
+    def _idle_card(self, state, broken, latest, mark) -> list:
+        """Bloco de topo quando nao ha varredura em curso.
+
+        Duas fontes, de proposito, e cada uma responde a uma pergunta:
+
+        `latest`  — a varredura mais recente, qualquer que seja. E ela que decide
+                    se ha ALARME: uma ameaca achada num pendrive ha um minuto nao
+                    pode ficar escondida atras do "limpa" da varredura de ontem.
+
+        `full`    — a varredura completa da maquina. E ela que descreve o ESTADO:
+                    "limpa (4s)" de um pendrive nao responde "esta maquina esta
+                    protegida?", mas apareceria como se respondesse.
+
+        Misturar as duas foi o bug anterior — horario de uma, veredito da outra.
+        Separa-las por PERGUNTA, e nao por linha, e o que mantem as duas honestas.
+        """
         full = units.pick_full_scan_unit(state)
+        estado = latest
         if full is not None:
-            result = scan.parse_summary(history.last_summary(
-                self.cfg.scan_log, full.id, user=full.user_scope) or "")
-        """Bloco de topo quando nao ha varredura em curso."""
-        title, subtitle = self._headline([], broken, result)
+            estado = scan.parse_summary(history.last_summary(
+                self.cfg.scan_log, full.id, user=full.user_scope,
+                output=progress.output_path() if full.user_scope else None) or "")
+
+        # O alarme vem da mais recente; o resto, da completa.
+        alarme = latest if latest.is_alarming else estado
+        title, subtitle = self._headline([], broken, alarme)
         rows = [widgets.status_row(title, "", mark)]
-        # "todos os servicos no ar" e redundante: a lista de servicos vem logo
-        # abaixo, com um ponto verde cada. Subtitulo so quando ha algo a explicar.
-        if subtitle and (broken or result.is_alarming):
+        if subtitle and (broken or alarme.is_alarming):
             rows.append(widgets.line(subtitle))
 
         if full is not None and full.finished_at:
             rows.append(widgets.line(
                 _("Last scan {when}", when=text.relative_time(full.finished_at))))
-        descricao = text.describe(result).capitalize()
-        # Quando o unico dado vem da sob demanda, diz-se de ONDE ele veio: sem
-        # isso, o veredito de um pendrive passaria por veredito da maquina.
+        descricao = text.describe(estado).capitalize()
         if full is not None and full.user_scope:
             descricao += f" · {_('on-demand scan')}"
         rows.append(widgets.line(descricao))
         if nxt := self._next_scan(state):
             rows.append(widgets.line(_("Next {when}", when=nxt)))
-        return rows
-
-    def _device_rows(self, media: list, busy: bool) -> list:
-        """Midia removivel: mostra e espera decisao, nao varre sozinho.
-
-        Varrer automaticamente ao plugar exige udev, unidade de sistema e root —
-        e age sem perguntar. Aqui o dispositivo aparece e a varredura so comeca se
-        voce clicar. Quem quiser o automatico instala contrib/extras/usb-scan.
-        """
-        if not media:
-            return []
-        # A dica de clique vai no titulo da secao porque NAO HA TOOLTIP: o
-        # protocolo dbusmenu nao carrega o conceito (verificado — zero ocorrencias
-        # nas bibliotecas). Affordance, aqui, so cabe no texto.
-        titulo = _("Devices") if busy else f'{_("Devices")} · {_("click to scan")}'
-        rows = [widgets.separator(), widgets.section(titulo)]
-        for dev in media:
-            when = self._scanned.get(dev.key)
-            size = devices.human_size(dev.size_bytes)
-            estado = (_("scanned {when}", when=text.relative_time(when)) if when
-                      else _("not scanned"))
-            desc = " · ".join(x for x in (size, estado) if x)
-            done = when is not None
-            if busy:
-                # Uma varredura de cada vez: a barra e o botao de parar sao
-                # unicos, e duas em paralelo tornariam ambos ambiguos.
-                row = widgets.status_row(dev.label, desc,
-                                         widgets.OK if done else widgets.MEDIA)
-            else:
-                row = widgets.status_action(
-                    dev.label, desc, widgets.OK if done else widgets.MEDIA,
-                    lambda _w, d=dev: self._on_scan_device(d))
-            rows.append(row)
-            rows.append(widgets.line(str(dev.mountpoint)))
         return rows
 
     def _quarantine_rows(self) -> list:
