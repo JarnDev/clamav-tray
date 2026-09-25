@@ -297,28 +297,17 @@ class Tray:
             for unit in sorted(sistema, key=lambda u: u.id):
                 menu.append(self._service_row(unit))
 
-        if usuario:
-            menu.append(widgets.separator())
-            menu.append(widgets.section(_("User")))
-            for unit in sorted(usuario, key=lambda u: u.id):
-                if unit.kind is units.Kind.JOB:
-                    # Tarefa encerrada nao e servico: ponto verde ali diria "no ar"
-                    # sobre algo que ja terminou. Mostra o desfecho, nao a saude.
-                    if unit.is_running_job:
-                        menu.append(widgets.status_row(
-                            _("On-demand scan"), _("running"), widgets.BUSY))
-                        continue
-                    ok = unit.result in ("success", "unknown")
-                    when = (text.relative_time(unit.finished_at)
-                            if unit.finished_at else "")
-                    menu.append(widgets.status_row(
-                        _("On-demand scan"),
-                        (_("finished {when}", when=when) if ok and when
-                         else _("finished") if ok else _("failed")),
-                        widgets.IDLE if ok else widgets.WARN,
-                    ))
-                else:
-                    menu.append(self._service_row(unit))
+        # A secao USUARIO existe SEMPRE, mesmo sem unidade: a linha da varredura
+        # sob demanda e o controle dela, e numa instalacao nova a unidade so nasce
+        # no primeiro clique. Sem isto nao haveria como iniciar a primeira.
+        menu.append(widgets.separator())
+        rodando = bool(running)
+        menu.append(widgets.section(
+            f'{_("User")} · {_("click to stop") if rodando else _("click to scan")}'))
+        menu.append(self._on_demand_row(usuario, rodando))
+        for unit in sorted(usuario, key=lambda u: u.id):
+            if unit.kind is not units.Kind.JOB:
+                menu.append(self._service_row(unit))
 
         # --- 2b. midia removivel ------------------------------------------
         for row in self._device_rows(media or [], bool(running or loose_scan)):
@@ -330,15 +319,6 @@ class Tray:
 
         # --- 4. acoes -----------------------------------------------------
         menu.append(widgets.separator())
-        if running:
-            menu.append(widgets.action(_("Stop scan"), "media-playback-stop-symbolic", self._on_stop))
-        elif loose_scan:
-            item = widgets.action(_("Scan my home now"), "media-playback-start-symbolic", lambda *_a: None)
-            item.set_sensitive(False)
-            menu.append(item)
-        else:
-            menu.append(widgets.action(_("Scan my home now"), "media-playback-start-symbolic", self._on_scan))
-
         if self.cfg.scan_log or self.cfg.log_file:
             menu.append(widgets.action(_("View logs"), "text-x-generic-symbolic", self._on_logs))
         menu.append(widgets.action(_("Settings"), "preferences-system-symbolic", self._on_settings))
@@ -347,6 +327,28 @@ class Tray:
 
         menu.show_all()
         return menu
+
+    def _on_demand_row(self, usuario, rodando):
+        """A linha da varredura sob demanda E o botao dela.
+
+        Substitui o item dedicado "Varrer minha home agora" / "Parar varredura":
+        estado e controle no mesmo lugar, um item a menos no menu.
+        """
+        job = next((u for u in usuario if u.kind is units.Kind.JOB), None)
+        if rodando:
+            return widgets.status_action(
+                _("On-demand scan"), _("running"), widgets.BUSY,
+                lambda *_a: self._on_stop())
+        if job is None:
+            estado, mark = _("never run"), widgets.IDLE
+        elif job.result in ("success", "unknown"):
+            estado = (_("finished {when}", when=text.relative_time(job.finished_at))
+                      if job.finished_at else _("finished"))
+            mark = widgets.IDLE
+        else:
+            estado, mark = _("failed"), widgets.WARN
+        return widgets.status_action(
+            _("On-demand scan"), estado, mark, lambda *_a: self._on_scan())
 
     def _service_row(self, unit) -> object:
         label = self.cfg.label_for(unit.id)

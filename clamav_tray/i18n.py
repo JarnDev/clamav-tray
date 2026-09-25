@@ -37,6 +37,8 @@ CATALOGS: dict[str, dict[str, str]] = {
         "Devices": "Dispositivos",
         "click to scan": "clique para varrer",
         "click to list": "clique para listar",
+        "click to stop": "clique para parar",
+        "never run": "nunca executada",
         "scanned {when}": "varrido {when}",
         "not scanned": "não varrido",
         "On-demand scan": "Varredura sob demanda",
