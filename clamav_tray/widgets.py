@@ -35,7 +35,7 @@ def dot(color: str) -> str:
 def header(title: str, subtitle: str, color: str) -> Gtk.MenuItem:
     """Bloco de topo: diz o veredito antes de o usuario ler qualquer linha."""
     item = Gtk.MenuItem()
-    item.set_sensitive(False)
+    _make_inert(item)
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
     box.set_margin_top(4)
     box.set_margin_bottom(4)
@@ -61,7 +61,7 @@ def status_row(label: str, value: str, color: str, detail: str = "") -> Gtk.Menu
     verdade, legivel de relance, em vez de texto corrido.
     """
     item = Gtk.MenuItem()
-    item.set_sensitive(False)
+    _make_inert(item)
     outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
     line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -93,7 +93,7 @@ def progress_row(label: str, fraction: float | None, detail: str) -> Gtk.MenuIte
     quanto falta.
     """
     item = Gtk.MenuItem()
-    item.set_sensitive(False)
+    _make_inert(item)
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
     box.set_margin_top(2)
     box.set_margin_bottom(2)
@@ -123,7 +123,7 @@ def progress_row(label: str, fraction: float | None, detail: str) -> Gtk.MenuIte
 def section(title: str) -> Gtk.MenuItem:
     """Rotulo de secao: maiusculas pequenas em cinza, como painel de sistema."""
     item = Gtk.MenuItem()
-    item.set_sensitive(False)
+    _make_inert(item)
     lbl = Gtk.Label(xalign=0)
     lbl.set_markup(
         f'<span foreground="{DIM}" size="x-small" letter_spacing="1200">'
@@ -149,6 +149,17 @@ def action(label: str, icon_name: str, handler) -> Gtk.MenuItem:
 
 def separator() -> Gtk.SeparatorMenuItem:
     return Gtk.SeparatorMenuItem()
+
+
+def _make_inert(item: Gtk.MenuItem) -> None:
+    """Linha informativa: nao reage a clique, mas NAO usa set_sensitive(False).
+
+    O GTK esmaece widget insensivel, e isso SOBREPOE a cor do Pango — os pontos de
+    status saiam todos cinza, sem distinguir verde de vermelho, que e justamente a
+    informacao. Em vez disso, o item continua sensivel e apenas engole o clique.
+    """
+    item.connect("button-press-event", lambda *_a: True)
+    item.connect("activate", lambda *_a: None)
 
 
 def _esc(text: str) -> str:

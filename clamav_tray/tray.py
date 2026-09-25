@@ -163,10 +163,13 @@ class Tray:
         # --- servicos ----------------------------------------------------
         menu.append(widgets.section(_("Services")))
         for unit in sorted(state.values(), key=lambda u: (u.kind.value, u.id)):
-            if unit.kind is units.Kind.TIMER:
+            # Timer aparece como "Proxima"; JOB aparece como "Ultima"/"Em andamento".
+            # Socket e encanamento do daemon: mostra-lo duplicaria a mesma linha
+            # ("ClamAV Daemon" e "Daemon" lado a lado, que foi o que saiu no teste).
+            if unit.kind in (units.Kind.TIMER, units.Kind.JOB):
                 continue
-            if unit.is_running_job:
-                continue  # ja apareceu na barra de progresso
+            if unit.id.endswith(".socket"):
+                continue
             menu.append(
                 widgets.status_row(
                     self.cfg.label_for(unit.id),
@@ -205,7 +208,7 @@ class Tray:
         for unit in state.values():
             if unit.kind is units.Kind.JOB and unit.finished_at:
                 return text.relative_time(unit.finished_at)
-        return "—"
+        return ""
 
     def _next_scan(self, state) -> str | None:
         for unit in state.values():

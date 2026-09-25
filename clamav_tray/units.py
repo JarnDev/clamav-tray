@@ -84,14 +84,47 @@ def _classify(unit_id: str, type_: str) -> Kind:
 
 
 def _parse_ts(value: str) -> datetime | None:
-    """systemd imprime 'Fri 2026-09-25 03:09:23 -03'; vazio quando nunca ocorreu."""
+    """systemd imprime 'Fri 2026-09-25 03:09:23 -03'. Duas armadilhas:
+
+    1. O nome do dia depende do LOCALE — "Fri" em C, "sex" em pt_BR. Por isso ele e
+       DESCARTADO em vez de casado: a data completa ja esta no resto da string.
+    2. O fuso sai com DOIS digitos ("-03") em varios fusos, e o %z do Python exige
+       quatro ("-0300"). Foi o que fez finished_at e next_elapse virarem None, e as
+       linhas "Ultima" e "Proxima" aparecerem vazias.
+    """
     value = value.strip()
-    if not value or value == "n/a":
+    if not value or value in ("n/a", "0"):
         return None
-    try:
-        return datetime.strptime(value, "%a %Y-%m-%d %H:%M:%S %z")
-    except ValueError:
+
+    parts = value.split()
+    # Descarta o dia da semana, se houver: comeca com letra, nao com digito.
+    if parts and not parts[0][0].isdigit():
+        parts = parts[1:]
+    if len(parts) < 2:
         return None
+
+    stamp = " ".join(parts[:2])
+    tz = parts[2] if len(parts) > 2 else ""
+    if tz:
+        sign, digits = tz[0], tz[1:].replace(":", "")
+        if sign in "+-" and digits.isdigit():
+            tz = f"{sign}{digits.ljust(4, '0')}"   # -03 -> -0300
+        else:
+            tz = ""   # nome de fuso ("UTC", "-03" abreviado) nao e offset
+
+    candidates = []
+    if tz:
+        candidates.append((f"{stamp} {tz}", "%Y-%m-%d %H:%M:%S %z"))
+    candidates.append((stamp, "%Y-%m-%d %H:%M:%S"))
+
+    for text, fmt in candidates:
+        try:
+            parsed = datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+        # Sem fuso na string, assume-se o local — que e o que o systemd imprimiu.
+        return parsed if parsed.tzinfo else parsed.astimezone()
+    return None
 
 
 def discover(glob: str = "clam*") -> list[str]:
