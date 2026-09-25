@@ -402,6 +402,40 @@ class Tray:
             rows.append(widgets.line(_("Next {when}", when=nxt)))
         return rows
 
+    def _device_rows(self, media: list, busy: bool) -> list:
+        """Midia removivel: mostra e espera decisao, nao varre sozinho.
+
+        Varrer automaticamente ao plugar exige udev, unidade de sistema e root —
+        e age sem perguntar. Aqui o dispositivo aparece e a varredura so comeca se
+        voce clicar. Quem quiser o automatico instala contrib/extras/usb-scan.
+        """
+        if not media:
+            return []
+        # A dica de clique vai no titulo da secao porque NAO HA TOOLTIP: o
+        # protocolo dbusmenu nao carrega o conceito (verificado — zero ocorrencias
+        # nas bibliotecas). Affordance, aqui, so cabe no texto.
+        titulo = _("Devices") if busy else f'{_("Devices")} · {_("click to scan")}'
+        rows = [widgets.separator(), widgets.section(titulo)]
+        for dev in media:
+            when = self._scanned.get(dev.key)
+            size = devices.human_size(dev.size_bytes)
+            estado = (_("scanned {when}", when=text.relative_time(when)) if when
+                      else _("not scanned"))
+            desc = " · ".join(x for x in (size, estado) if x)
+            done = when is not None
+            if busy:
+                # Uma varredura de cada vez: a barra e o botao de parar sao
+                # unicos, e duas em paralelo tornariam ambos ambiguos.
+                row = widgets.status_row(dev.label, desc,
+                                         widgets.OK if done else widgets.MEDIA)
+            else:
+                row = widgets.status_action(
+                    dev.label, desc, widgets.OK if done else widgets.MEDIA,
+                    lambda _w, d=dev: self._on_scan_device(d))
+            rows.append(row)
+            rows.append(widgets.line(str(dev.mountpoint)))
+        return rows
+
     def _quarantine_rows(self) -> list:
         """Uma subsecao por dono.
 
