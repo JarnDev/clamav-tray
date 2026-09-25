@@ -40,6 +40,7 @@ CATALOGS: dict[str, dict[str, str]] = {
         "click to stop": "clique para parar",
         "never run": "nunca executada",
         "clean {when}": "limpo {when}",
+        "no threats {when}": "sem ameaças {when}",
         "{n} threat {when}": "{n} ameaça {when}",
         "{n} threats {when}": "{n} ameaças {when}",
         "{n} threat NOT isolated {when}": "{n} ameaça NÃO isolada {when}",
@@ -93,6 +94,7 @@ CATALOGS: dict[str, dict[str, str]] = {
         "{n} unreadable files": "{n} arquivos ilegíveis",
         # Acoes
         "Scan my home now": "Varrer minha home agora",
+        "Scan my home": "Varrer a home",
         "Stop scan": "Parar varredura",
         "List quarantine": "Listar quarentena",
         "Mine": "Minha",

@@ -82,6 +82,12 @@ class Tray:
         # varredura termina: marcar no clique dizia "varrido" com 57% na tela, e
         # continuaria dizendo se voce cancelasse.
         self._scanning_key: str | None = None
+        # Resultado da ultima varredura DA HOME, separado do resultado por midia.
+        # As duas usam a mesma unidade transitoria — acidente de implementacao —, e
+        # ler o estado dela fazia a linha da home relatar a varredura de um
+        # pendrive. Cada escopo guarda o proprio desfecho.
+        self._last_home: tuple | None = None
+        self._scanning_home = False
         self.indicator = _INDICATOR.Indicator.new(
             "clamav-tray", ICONS["ok"], _INDICATOR.IndicatorCategory.SYSTEM_SERVICES
         )
@@ -122,16 +128,20 @@ class Tray:
         # A varredura de midia so conta como feita quando a unidade TERMINA bem.
         # Marcar no clique fazia o dispositivo aparecer "varrido" com a barra em
         # 57% — e continuaria assim se a varredura fosse cancelada.
-        if self._scanning_key and job and not job.is_running_job:
-            # Achou virus tambem conta como varrido: a midia FOI conferida.
+        if (self._scanning_key or self._scanning_home) and job and not job.is_running_job:
+            # Achou virus tambem conta como varrido: o alvo FOI conferido.
             if job.result in ("success", "unknown") or job.found_threats:
                 # found - moved = ameacas que NAO puderam ser isoladas. Midia
                 # somente leitura e o caso comum: o clamdscan acha, falha ao
                 # remover e ainda assim reporta "Infected files: N".
                 presas = max(result.infected - self._counter.moved, 0)
-                self._scanned[self._scanning_key] = (
-                    job.finished_at or _now(), result.infected, presas)
+                registro = (job.finished_at or _now(), result.infected, presas)
+                if self._scanning_key:
+                    self._scanned[self._scanning_key] = registro
+                else:
+                    self._last_home = registro
             self._scanning_key = None
+            self._scanning_home = False
 
         media = devices.list_removable()
         pending = [d for d in media if d.key not in self._scanned]
@@ -340,32 +350,40 @@ class Tray:
         return menu
 
     def _on_demand_row(self, usuario, rodando):
-        """A linha da varredura sob demanda E o botao dela.
+        """Controle da varredura da HOME, com o resultado DELA.
 
-        Substitui o item dedicado "Varrer minha home agora" / "Parar varredura":
-        estado e controle no mesmo lugar, um item a menos no menu.
+        Antes esta linha lia o estado da unidade transitoria — que e a mesma para
+        home e para midia removivel. Varrer um pendrive fazia a linha da home
+        anunciar "encontrou ameacas", e clicar nela iniciava uma varredura de 1,1
+        milhao de arquivos que ninguem pediu.
+
+        Agora o rotulo e o VERBO (o que o clique faz) e o estado e o da ultima
+        varredura da home. O resultado de cada midia mora na linha da midia.
         """
-        job = next((u for u in usuario if u.kind is units.Kind.JOB), None)
         if rodando:
             return widgets.status_action(
                 _("On-demand scan"), _("running"), widgets.BUSY,
                 lambda *_a: self._on_stop())
-        if job is None:
+
+        if self._last_home is None:
             estado, mark = _("never run"), widgets.IDLE
-        elif job.found_threats:
-            # Achar virus e o TRABALHO da varredura, nao falha dela. O clamdscan
-            # sai com 1 nesse caso, e o systemd marca a unidade como failed.
-            estado = (_("found threats {when}", when=text.relative_time(job.finished_at))
-                      if job.finished_at else _("found threats"))
-            mark = widgets.BAD
-        elif job.result in ("success", "unknown"):
-            estado = (_("finished {when}", when=text.relative_time(job.finished_at))
-                      if job.finished_at else _("finished"))
-            mark = widgets.IDLE
         else:
-            estado, mark = _("failed"), widgets.WARN
+            when, infectados, presas = self._last_home
+            quando = text.relative_time(when)
+            if presas:
+                estado = _("{n} threat NOT isolated {when}" if presas == 1
+                           else "{n} threats NOT isolated {when}", n=presas, when=quando)
+                mark = widgets.BAD
+            elif infectados:
+                estado = _("{n} threat {when}" if infectados == 1
+                           else "{n} threats {when}", n=infectados, when=quando)
+                mark = widgets.BAD
+            else:
+                # Chave propria: "limpo" concorda com dispositivo; aqui o sujeito
+                # e a varredura da home, e a frase sem genero serve aos dois.
+                estado, mark = _("no threats {when}", when=quando), widgets.OK
         return widgets.status_action(
-            _("On-demand scan"), estado, mark, lambda *_a: self._on_scan())
+            _("Scan my home"), estado, mark, lambda *_a: self._on_scan())
 
     def _service_row(self, unit) -> object:
         label = self.cfg.label_for(unit.id)
@@ -536,6 +554,8 @@ class Tray:
         config_mod.clean_stale_locks(dest)
         actions.start_scan(Path.home(), self.cfg.socket, dest)
         self._scan_target = Path.home()
+        self._scanning_home = True
+        self._scanning_key = None
         # A lista acabou de ser escrita; guardar o total e o que da escala a barra.
         self._list_total = progress.count_lines(progress.list_path()) or None
 
@@ -547,6 +567,7 @@ class Tray:
         # midia removivel e so gastariam tempo do find.
         if actions.start_scan(dev.mountpoint, self.cfg.socket, dest, excludes=[]):
             self._scanning_key = dev.key
+            self._scanning_home = False
             self._scan_target = dev.mountpoint
             self._list_total = progress.count_lines(progress.list_path()) or None
 
