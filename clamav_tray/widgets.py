@@ -74,10 +74,15 @@ def progress_row(label: str, fraction: float | None, detail: str) -> Gtk.MenuIte
     box.pack_start(top, False, False, 0)
 
     bar = Gtk.ProgressBar()
+    bar.set_size_request(240, -1)   # menu de bandeja e estreito; sem isto a barra some
     if fraction is None:
+        # Sem fracao a barra PULSA. O clamdscan nao informa progresso quando se
+        # aponta um diretorio; fingir porcentagem seria inventar.
         bar.pulse()
     else:
         bar.set_fraction(max(0.0, min(1.0, fraction)))
+        bar.set_show_text(True)
+        bar.set_text(f"{int(fraction * 100)}%")
     box.pack_start(bar, False, False, 0)
 
     if detail:

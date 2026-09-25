@@ -31,7 +31,7 @@ for _lib, _ver in (("AyatanaAppIndicator3", "0.1"), ("AppIndicator3", "0.1")):
     except (ValueError, ImportError, KeyError):
         continue
 
-from . import actions, config as config_mod, history, scan, text, units, widgets  # noqa: E402
+from . import actions, config as config_mod, history, progress, scan, text, units, widgets  # noqa: E402
 from .config import Config  # noqa: E402
 from . import i18n  # noqa: E402
 from .i18n import _  # noqa: E402
@@ -62,6 +62,10 @@ class Tray:
         self.cfg = cfg
         self.unit_ids = cfg.units or units.discover()
         self._last_duration: int | None = None
+        # Conta so os bytes novos da saida a cada atualizacao; reler um milhao de
+        # linhas de 10 em 10 segundos custaria mais que a propria varredura.
+        self._counter = progress.LineCounter(progress.output_path())
+        self._list_total: int | None = None
         self.indicator = _INDICATOR.Indicator.new(
             "clamav-tray", ICONS["ok"], _INDICATOR.IndicatorCategory.SYSTEM_SERVICES
         )
@@ -115,12 +119,41 @@ class Tray:
         )
         return True  # mantem o timer vivo
 
+    def _progress(self, elapsed: int) -> tuple[float | None, str]:
+        """Fracao e legenda da barra.
+
+        Ordem das fontes: contador publicado por quem varre (convencao), depois a
+        nossa propria contagem de linhas, depois nada. "Nada" vira barra pulsante e
+        so o tempo decorrido — honesto, em vez de uma porcentagem inventada.
+        """
+        base = _("for {duration}", duration=scan.human_duration(elapsed))
+
+        pr = progress.from_counter_file(
+            self.cfg.scan_log.parent if self.cfg.scan_log else None
+        )
+        if self._list_total is None:
+            # O tray pode ter reiniciado no meio de uma varredura. O total esta no
+            # proprio arquivo de lista, entao nao ha por que perde-lo.
+            self._list_total = progress.count_lines(progress.list_path()) or None
+
+        if pr is None and (total := self._list_total):
+            done = self._counter.count()
+            if done:
+                pr = progress.Progress(done=done, total=total)
+
+        if pr and pr.fraction is not None:
+            return pr.fraction, f"{base} · {pr.done:,}/{pr.total:,}".replace(",", ".")
+        return None, base
+
     def _indicator_label(self, running, loose_scan, result) -> str:
         """Texto ao lado do icone na barra. Vazio em repouso — indicador que fala o
         tempo todo vira ruido; o que fala so quando ha o que dizer, e lido."""
         if result.is_alarming:
             return f"⚠ {result.infected}"
         if running and (secs := running[0].elapsed_secs):
+            frac, _d = self._progress(secs)
+            if frac is not None:
+                return f"{int(frac * 100)}%"
             return scan.human_duration(secs)
         if running or loose_scan:
             return "…"
@@ -154,15 +187,8 @@ class Tray:
         if running or loose_scan:
             job = running[0] if running else None
             elapsed = (job.elapsed_secs if job else None) or 0
-            total = self._last_duration or _FALLBACK_SCAN_SECS
-            menu.append(
-                widgets.progress_row(
-                    _("In progress"),
-                    min(elapsed / total, 0.99) if total else None,
-                    _("for {duration}", duration=scan.human_duration(elapsed))
-                    + (" · " + _("estimate {duration}", duration=scan.human_duration(total)) if self._last_duration else ""),
-                )
-            )
+            frac, detail = self._progress(elapsed)
+            menu.append(widgets.progress_row(_("In progress"), frac, detail))
         else:
             menu.append(
                 widgets.status_row(
@@ -273,6 +299,8 @@ class Tray:
         dest = config_mod.ensure_user_quarantine(self.cfg.user_quarantine) \
             if self.cfg.user_quarantine else None
         actions.start_scan(Path.home(), self.cfg.socket, dest)
+        # A lista acabou de ser escrita; guardar o total e o que da escala a barra.
+        self._list_total = progress.count_lines(progress.list_path()) or None
 
     def _on_stop(self, *_a):
         actions.stop_scan()

@@ -70,7 +70,12 @@ def can_quarantine(quarantine: Path | None) -> bool:
     return bool(quarantine and os.access(quarantine, os.W_OK | os.X_OK))
 
 
-def scan_argv(target: Path, socket: Path | None, quarantine: Path | None) -> list[str]:
+def scan_argv(
+    target: Path | None,
+    socket: Path | None,
+    quarantine: Path | None,
+    file_list: Path | None = None,
+) -> list[str]:
     """Varredura sob demanda, preferindo o daemon.
 
     clamscan recarrega ~1 GB de assinaturas a cada execucao e varre em thread
@@ -84,13 +89,23 @@ def scan_argv(target: Path, socket: Path | None, quarantine: Path | None) -> lis
     Sem `--move` a varredura vira DETECCAO: ela aponta o que achou e nao move nada.
     Quem move e a varredura agendada, que roda como root.
     """
+    # `-i` (--infected) imprime SO os infectados. E o que se quer normalmente —
+    # e o que torna o progresso impossivel de contar, porque a barra se apoia na
+    # linha "arquivo: OK" de cada arquivo. Com lista, portanto, sem -i.
+    #
+    # Custo: a saida passa a ter uma linha por arquivo (~70 MB para 1,1 milhao).
+    # Fica em tmpfs e some no logout; e lida uma vez, incrementalmente.
+    quiet = [] if file_list is not None else ["-i"]
     if socket and socket.exists() and shutil.which("clamdscan"):
-        argv = ["clamdscan", "--fdpass", "-i"]
+        argv = ["clamdscan", "--fdpass", *quiet]
     else:
-        argv = ["clamscan", "-r", "-i"]
+        argv = ["clamscan", "-r", *quiet]
     if can_quarantine(quarantine):
         argv.append(f"--move={quarantine}")
-    argv.append(str(target))
+    if file_list is not None:
+        argv.append(f"--file-list={file_list}")
+    else:
+        argv.append(str(target))
     return argv
 
 
@@ -106,6 +121,61 @@ def stop_scan() -> bool:
         return False
 
 
+# Exclusoes padrao da varredura sob demanda. Nao existiam: ela varria os 221 GB
+# inteiros, inclusive o que a varredura agendada ja pula. Volume enorme, risco
+# desprezivel — binario de jogo assinado pela loja, cache de navegador, pacote
+# gerenciado. O que NAO sai e onde o risco mora: Downloads, Documentos, codigo.
+DEFAULT_EXCLUDES = [
+    ".cache", ".local/share/Trash", ".local/share/Steam", ".local/share/lutris",
+    ".local/share/pnpm", ".local/share/virtualenvs", ".local/share/pipx",
+    ".config/google-chrome", ".mozilla/firefox",
+]
+# Por NOME, em qualquer profundidade — diferente das de cima, que sao caminhos
+# fixos. Medido: excluir ".cache" so no topo deixava passar .cargo/registry/index/
+# .cache, snap/*/common/.cache e varios outros. Cache e regeneravel onde quer que
+# esteja.
+EXCLUDE_NAMES = ["node_modules", ".venv", "venv", "__pycache__", ".cache"]
+
+
+def build_file_list(target: Path, dest: Path, excludes: list[str] | None = None) -> int:
+    """Monta a lista de arquivos a varrer e devolve quantos sao.
+
+    POR QUE listar antes em vez de apontar o diretorio: com `--file-list` o
+    clamdscan imprime UMA LINHA POR ARQUIVO, e e isso que torna a barra de
+    progresso uma CONTAGEM em vez de um palpite pelo relogio. Apontando o
+    diretorio ele imprime uma linha so, no fim.
+
+    Custo medido: 4.500.726 arquivos listados em 10 segundos. Irrelevante diante de
+    uma varredura de horas — e de brinde vem as exclusoes, que a varredura sob
+    demanda nao tinha.
+
+    Nomes com quebra de linha ficam de fora: o formato de lista e delimitado por
+    linha, e um nome assim viraria dois caminhos inexistentes.
+    """
+    ex = DEFAULT_EXCLUDES if excludes is None else excludes
+    argv = ["find", str(target)]
+    if ex or EXCLUDE_NAMES:
+        argv.append("(")
+        parts: list[str] = []
+        for rel in ex:
+            parts += ["-path", str(target / rel), "-o"]
+        for name in EXCLUDE_NAMES:
+            parts += ["-name", name, "-o"]
+        argv += parts[:-1]
+        argv += [")", "-prune", "-o"]
+    argv += ["-type", "f", "-print0"]
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        proc = subprocess.run(argv, capture_output=True, timeout=600)
+    except (OSError, subprocess.SubprocessError):
+        return 0
+
+    kept = [p for p in proc.stdout.split(b"\0") if p and b"\n" not in p]
+    dest.write_bytes(b"\n".join(kept) + (b"\n" if kept else b""))
+    return len(kept)
+
+
 def start_scan(target: Path, socket: Path | None, quarantine: Path | None) -> bool:
     """Lanca a varredura como UNIDADE TRANSITORIA do usuario.
 
@@ -119,7 +189,16 @@ def start_scan(target: Path, socket: Path | None, quarantine: Path | None) -> bo
 
     Sem systemd-run, cai no terminal — pior, mas melhor que nao varrer.
     """
-    argv = scan_argv(target, socket, quarantine)
+    # Lista propria: e o que permite contar o progresso e aplicar exclusoes.
+    from . import progress
+    listing = progress.list_path()
+    out = progress.output_path()
+    total = build_file_list(target, listing)
+    if total:
+        argv = scan_argv(None, socket, quarantine, file_list=listing)
+    else:
+        argv = scan_argv(target, socket, quarantine)
+
     if not shutil.which("systemd-run"):
         return run_in_terminal(" ".join(_quote(a) for a in argv))
 
@@ -138,12 +217,15 @@ def start_scan(target: Path, socket: Path | None, quarantine: Path | None) -> bo
         ["systemctl", "--user", "stop", f"{TRANSIENT_UNIT}.service"],
         capture_output=True, timeout=10, check=False,
     )
+    # A saida vai para ARQUIVO, nao para o journal: o progresso e contado nela, e
+    # reler o journal a cada atualizacao sairia caro.
+    shell = " ".join(_quote(a) for a in argv) + f" > {_quote(str(out))} 2>&1"
     return _spawn([
         "systemd-run", "--user", "--quiet",
         f"--unit={TRANSIENT_UNIT}",
         "--remain-after-exit",
         "--description=ClamAV on-demand scan (clamav-tray)",
-        *argv,
+        "/bin/sh", "-c", shell,
     ])
 
 
