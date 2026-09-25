@@ -247,6 +247,41 @@ def _guess_quarantine() -> Path | None:
     return None
 
 
+# O clamdscan cria uma trava por execucao dentro da quarentena e NAO a remove
+# quando a varredura e interrompida. Conta-las como conteudo transforma o
+# indicador em alarme falso: seis travas viraram "6 arquivos" em laranja, sem
+# nenhuma deteccao ter acontecido.
+LOCK_PREFIX = ".clamav-quarantine-lock"
+
+
+def is_lock(path: Path) -> bool:
+    return path.name.startswith(LOCK_PREFIX)
+
+
+def clean_stale_locks(path: Path | None) -> int:
+    """Remove travas de processos que nao existem mais.
+
+    So apaga o que casa com o prefixo E cujo PID morreu — nunca toca em arquivo
+    de conteudo. O PID esta no proprio nome: .clamav-quarantine-lock.<pid>.<n>
+    """
+    if path is None or not path.is_dir():
+        return 0
+    removed = 0
+    for entry in path.iterdir():
+        if not is_lock(entry):
+            continue
+        parts = entry.name.split(".")
+        pid = next((int(x) for x in parts if x.isdigit()), None)
+        if pid is None or Path(f"/proc/{pid}").exists():
+            continue
+        try:
+            entry.unlink()
+            removed += 1
+        except OSError:
+            pass
+    return removed
+
+
 def quarantine_count(path: Path | None) -> int | None:
     """Quantos arquivos ha na quarentena, ou None se nao der para ler.
 
@@ -256,7 +291,7 @@ def quarantine_count(path: Path | None) -> int | None:
     if path is None:
         return None
     try:
-        return sum(1 for _ in path.iterdir())
+        return sum(1 for entry in path.iterdir() if not is_lock(entry))
     except OSError:
         return None
 

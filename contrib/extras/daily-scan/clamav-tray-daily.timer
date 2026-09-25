@@ -1,0 +1,13 @@
+[Unit]
+Description=ClamAV daily scan (clamav-tray extra)
+
+[Timer]
+# Madrugada: a varredura percorre a home inteira e satura o disco por horas.
+# RandomizedDelaySec espalha o inicio para nao competir com outros jobs do mesmo
+# horario. Persistent recupera a execucao se a maquina estava desligada.
+OnCalendar=*-*-* 03:00:00
+RandomizedDelaySec=15m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

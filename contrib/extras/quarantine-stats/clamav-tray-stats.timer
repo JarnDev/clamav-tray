@@ -1,0 +1,13 @@
+[Unit]
+Description=Publish ClamAV quarantine stats for clamav-tray
+
+[Timer]
+# A quarentena so muda quando uma varredura move algo, entao 15 min e folgado.
+# Existe para o caso de alguem mexer nela a mao — sem isto, a estatistica ficaria
+# velha ate a proxima varredura.
+OnBootSec=2min
+OnUnitActiveSec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

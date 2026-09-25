@@ -1,0 +1,21 @@
+[Unit]
+Description=ClamAV daily scan (clamav-tray extra)
+Documentation=https://github.com/JarnDev/clamav-tray
+After=clamav-daemon.service
+Wants=clamav-daemon.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/clamav-tray-daily.sh
+EnvironmentFile=/etc/default/clamav-tray-daily
+
+# Prioridade baixa para nao competir com o uso interativo. RESSALVA MEDIDA: em
+# disco saturado isso NAO ajuda, porque nao ha folga para ceder — a varredura que
+# travou a maquina de origem rodava com estas mesmas opcoes. O que resolveu foi
+# migrar de clamscan para clamdscan e mover o horario.
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+
+[Install]
+WantedBy=multi-user.target

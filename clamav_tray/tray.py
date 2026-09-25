@@ -15,6 +15,7 @@ mostrar — que e a parte que sobrevive a reescrita.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 
 import gi
@@ -31,7 +32,8 @@ for _lib, _ver in (("AyatanaAppIndicator3", "0.1"), ("AppIndicator3", "0.1")):
     except (ValueError, ImportError, KeyError):
         continue
 
-from . import actions, config as config_mod, history, progress, scan, text, units, widgets  # noqa: E402
+from . import (actions, config as config_mod, history, progress,  # noqa: E402
+               quarantine, scan, text, units, widgets)
 from .config import Config  # noqa: E402
 from . import i18n  # noqa: E402
 from .i18n import _  # noqa: E402
@@ -230,100 +232,73 @@ class Tray:
     # ------------------------------------------------------------------ menu
 
     def _build_menu(self, state, running, broken, result, mark, loose_scan=False) -> Gtk.Menu:
+        """Quatro blocos separados por linha, sem rotulo de secao.
+
+        Rotulo de secao custa uma linha para dizer o que o agrupamento ja diz. Num
+        menu de bandeja, onde nao ha negrito nem cor — o dbusmenu descarta markup —,
+        a hierarquia sai de recuo, simbolo e separador. So isso.
+        """
         menu = Gtk.Menu()
         menu.set_reserve_toggle_size(False)
 
-        title, subtitle = self._headline(running, broken, result, loose_scan)
-        menu.append(widgets.header(title, subtitle, mark))
-        menu.append(widgets.separator())
-
-        # --- varredura ---------------------------------------------------
-        menu.append(widgets.section(_("Scan")))
-
+        # --- 1. o que esta acontecendo -----------------------------------
         if running or loose_scan:
             job = running[0] if running else None
-            elapsed = (job.elapsed_secs if job else None) or 0
-            for row in self._scan_card(elapsed, bool(job)):
+            for row in self._scan_card((job.elapsed_secs if job else None) or 0, bool(job)):
                 menu.append(row)
         else:
-            menu.append(
-                widgets.status_row(
-                    _("Last"),
-                    self._when_last(state),
-                    widgets.BAD if result.is_alarming else (
-                        widgets.IDLE if result.verdict is Verdict.UNKNOWN else widgets.OK
-                    ),
-                    text.describe(result),
-                )
-            )
+            for row in self._idle_card(state, broken, result, mark):
+                menu.append(row)
 
-        if nxt := self._next_scan(state):
-            menu.append(widgets.status_row(_("Next"), nxt, widgets.IDLE))
+        # --- 2. servicos, separados por barramento -----------------------
+        # Sistema e usuario sao contextos diferentes de privilegio, nao detalhe de
+        # implementacao: o que roda como root e o que roda como voce respondem a
+        # perguntas diferentes quando algo da errado.
+        sistema = [u for u in state.values()
+                   if not u.user_scope and u.kind is units.Kind.DAEMON
+                   and not u.id.endswith(".socket")]
+        usuario = [u for u in state.values() if u.user_scope]
 
-        # --- servicos ----------------------------------------------------
-        menu.append(widgets.section(_("Services")))
-        for unit in sorted(state.values(), key=lambda u: (u.kind.value, u.id)):
-            # Timer aparece como "Proxima"; JOB aparece como "Ultima"/"Em andamento".
-            # Socket e encanamento do daemon: mostra-lo duplicaria a mesma linha
-            # ("ClamAV Daemon" e "Daemon" lado a lado, que foi o que saiu no teste).
-            if unit.kind in (units.Kind.TIMER, units.Kind.JOB):
-                continue
-            if unit.id.endswith(".socket"):
-                continue
-            menu.append(
-                widgets.status_row(
-                    self.cfg.label_for(unit.id),
-                    unit.sub_state,
-                    widgets.OK if unit.is_healthy else widgets.WARN,
-                )
-            )
+        if sistema:
+            menu.append(widgets.separator())
+            menu.append(widgets.section(_("System")))
+            for unit in sorted(sistema, key=lambda u: u.id):
+                menu.append(self._service_row(unit))
 
-        if self.cfg.quarantine:
-            n = config_mod.quarantine_count(self.cfg.quarantine)
-            if n is None:
-                value, mark = _("needs root to list"), widgets.IDLE
-            elif n == 0:
-                value, mark = _("empty"), widgets.OK
-            else:
-                value = _("{n} file" if n == 1 else "{n} files", n=n)
-                mark = widgets.WARN
-            menu.append(widgets.status_row(_("Quarantine"), value, mark,
-                                           str(self.cfg.quarantine)))
+        if usuario:
+            menu.append(widgets.separator())
+            menu.append(widgets.section(_("User")))
+            for unit in sorted(usuario, key=lambda u: u.id):
+                if unit.kind is units.Kind.JOB:
+                    # Tarefa encerrada nao e servico: ponto verde ali diria "no ar"
+                    # sobre algo que ja terminou. Mostra o desfecho, nao a saude.
+                    ok = unit.result in ("success", "unknown")
+                    when = (text.relative_time(unit.finished_at)
+                            if unit.finished_at else "")
+                    menu.append(widgets.status_row(
+                        _("On-demand scan"),
+                        (_("finished {when}", when=when) if ok and when
+                         else _("finished") if ok else _("failed")),
+                        widgets.IDLE if ok else widgets.WARN,
+                    ))
+                else:
+                    menu.append(self._service_row(unit))
 
-        if self.cfg.user_quarantine:
-            n = config_mod.quarantine_count(self.cfg.user_quarantine)
-            # So aparece quando tem algo dentro: diretorio vazio nao merece linha.
-            if n:
-                menu.append(widgets.status_row(
-                    _("Quarantine (mine)"),
-                    _("{n} file" if n == 1 else "{n} files", n=n),
-                    widgets.WARN, str(self.cfg.user_quarantine)))
+        # --- 3. quarentena, uma subsecao por dono -------------------------
+        for row in self._quarantine_rows():
+            menu.append(row)
 
-        if not history.journal_readable() and self.cfg.scan_log is None:
-            menu.append(
-                widgets.status_row(
-                    _("History"), _("unavailable"), widgets.IDLE,
-                    _("no journal access (group adm or systemd-journal)"),
-                )
-            )
-
-        # --- acoes -------------------------------------------------------
+        # --- 4. acoes -----------------------------------------------------
         menu.append(widgets.separator())
         if running:
-            # Varredura lancada por nos: da para parar, entao o botao VIRA parar.
-            menu.append(widgets.action(
-                _("Stop scan"), "media-playback-stop-symbolic", self._on_stop))
+            menu.append(widgets.action(_("Stop scan"), "media-playback-stop-symbolic", self._on_stop))
         elif loose_scan:
-            # Varredura de fora: sabemos que existe, mas nao e nossa para interromper.
-            item = widgets.action(
-                _("Scan my home now"), "media-playback-start-symbolic", lambda *_a: None)
+            item = widgets.action(_("Scan my home now"), "media-playback-start-symbolic", lambda *_a: None)
             item.set_sensitive(False)
             menu.append(item)
         else:
-            menu.append(widgets.action(
-                _("Scan my home now"), "media-playback-start-symbolic", self._on_scan))
-        if self.cfg.quarantine:
-            menu.append(widgets.action(_("List quarantine"), "folder-symbolic", self._on_quarantine))
+            menu.append(widgets.action(_("Scan my home now"), "media-playback-start-symbolic", self._on_scan))
+
         if self.cfg.scan_log or self.cfg.log_file:
             menu.append(widgets.action(_("View logs"), "text-x-generic-symbolic", self._on_logs))
         menu.append(widgets.action(_("Settings"), "preferences-system-symbolic", self._on_settings))
@@ -333,7 +308,77 @@ class Tray:
         menu.show_all()
         return menu
 
-    # ------------------------------------------------------------- formatos
+    def _service_row(self, unit) -> object:
+        label = self.cfg.label_for(unit.id)
+        # Estado so aparece quando e ANORMAL: "running" repetido em toda linha e
+        # ruido, e o ponto verde ja diz.
+        if not unit.is_healthy:
+            label += f" · {unit.sub_state}"
+        return widgets.status_row(
+            label, "", widgets.OK if unit.is_healthy else widgets.WARN)
+
+    def _idle_card(self, state, broken, result, mark) -> list:
+        """Bloco de topo quando nao ha varredura em curso."""
+        title, subtitle = self._headline([], broken, result)
+        rows = [widgets.status_row(title, "", mark)]
+        # "todos os servicos no ar" e redundante: a lista de servicos vem logo
+        # abaixo, com um ponto verde cada. Subtitulo so quando ha algo a explicar.
+        if subtitle and (broken or result.is_alarming):
+            rows.append(widgets.line(subtitle))
+
+        when = self._when_last(state)
+        if when:
+            rows.append(widgets.line(_("Last scan {when}", when=when)))
+        rows.append(widgets.line(text.describe(result).capitalize()))
+        if nxt := self._next_scan(state):
+            rows.append(widgets.line(_("Next {when}", when=nxt)))
+        return rows
+
+    def _quarantine_rows(self) -> list:
+        """Uma subsecao por dono.
+
+        Sao duas quarentenas com donos e regras diferentes, e tratar as duas como
+        uma so era o que produzia a linha enganosa "precisa de root para listar"
+        mesmo quando a do usuario estava perfeitamente legivel. Root precisa de
+        root; a sua, nao.
+        """
+        rows = []
+
+        stats = quarantine.read_stats()
+        if stats or self.cfg.quarantine:
+            path = (stats.source if stats and stats.source else self.cfg.quarantine)
+            if stats:
+                desc = _("{n} file" if stats.count == 1 else "{n} files", n=stats.count)
+                if stats.bytes:
+                    desc += f" · {quarantine.human_bytes(stats.bytes)}"
+                mark = widgets.WARN if stats.count else widgets.OK
+            else:
+                desc, mark = _("needs root to list"), widgets.IDLE
+            rows.append(widgets.status_action(
+                "root", desc, mark, self._on_quarantine_system))
+            if stats and stats.checked_at:
+                rows.append(widgets.line(
+                    _("checked {when}", when=text.relative_time(stats.checked_at))))
+            if path:
+                rows.append(widgets.line(_shorten(path)))
+
+        if self.cfg.user_quarantine:
+            n = config_mod.quarantine_count(self.cfg.user_quarantine)
+            if n is None:
+                desc, mark = _("unreadable"), widgets.IDLE
+            elif n == 0:
+                desc, mark = _("empty"), widgets.OK
+            else:
+                desc = _("{n} file" if n == 1 else "{n} files", n=n)
+                mark = widgets.WARN
+            rows.append(widgets.status_action(
+                _current_user(), desc, mark, self._on_quarantine_user))
+            rows.append(widgets.line(_shorten(self.cfg.user_quarantine)))
+
+        if rows:
+            rows.insert(0, widgets.section(_("Quarantine")))
+            rows.insert(0, widgets.separator())
+        return rows
 
     def _when_last(self, state) -> str:
         for unit in state.values():
@@ -354,6 +399,9 @@ class Tray:
         # root e ela roda como voce. Sem destino gravavel o clamdscan aborta.
         dest = config_mod.ensure_user_quarantine(self.cfg.user_quarantine) \
             if self.cfg.user_quarantine else None
+        # Limpa travas de varreduras interrompidas antes de comecar: elas se
+        # acumulam e o clamdscan nao as remove sozinho.
+        config_mod.clean_stale_locks(dest)
         actions.start_scan(Path.home(), self.cfg.socket, dest)
         # A lista acabou de ser escrita; guardar o total e o que da escala a barra.
         self._list_total = progress.count_lines(progress.list_path()) or None
@@ -361,8 +409,13 @@ class Tray:
     def _on_stop(self, *_a):
         actions.stop_scan()
 
-    def _on_quarantine(self, *_a):
+    def _on_quarantine_system(self, *_a):
         actions.list_quarantine(self.cfg.quarantine, self.cfg.terminal)
+
+    def _on_quarantine_user(self, *_a):
+        # A do usuario nao precisa de sudo: e nossa.
+        actions.list_quarantine(
+            self.cfg.user_quarantine, self.cfg.terminal, privileged=False)
 
     def _on_settings(self, *_a):
         """Abre o arquivo de config, criando um modelo comentado se nao existir.
@@ -382,3 +435,20 @@ class Tray:
 def _thousands(n: int) -> str:
     """1131791 -> 1.131.791. Numero grande sem separador vira borrao."""
     return f"{n:,}".replace(",", ".")
+
+
+def _current_user() -> str:
+    """Nome do usuario, para a quarentena dele nao se chamar "minha" — num menu
+    que fala de root ao lado, o nome real e o que deixa o par legivel."""
+    import getpass
+    try:
+        return getpass.getuser()
+    except Exception:
+        return os.environ.get("USER", "user")
+
+
+def _shorten(path) -> str:
+    """/home/oranos/.local/... -> ~/.local/... — caminho inteiro domina a linha."""
+    text_ = str(path)
+    home = str(Path.home())
+    return "~" + text_[len(home):] if text_.startswith(home) else text_

@@ -58,6 +58,31 @@ pessoal e pode ser reescrita à força a qualquer momento.
 
 ---
 
+## O que funciona numa instalação limpa
+
+O programa **observa** o que existe. Ele não instala unidade, não agenda varredura
+e não decide o que varrer — é essa escolha que o mantém instalável sem root.
+
+Consequência honesta, medida num Ubuntu com `clamav-daemon` e `clamav-freshclam`:
+
+| | De fábrica |
+|---|---|
+| ClamAV Daemon, Freshclam, On-Access | **sim**, vêm nos pacotes |
+| Varrer minha home agora | **sim**, precisa só do `clamd` no ar |
+| Quarentena do usuário | **sim**, criada sob demanda |
+| Barra de progresso | **sim**, é da varredura sob demanda |
+| Varredura agendada, "Próxima", "Última" | **não** — nenhuma distro entrega |
+| Monitor de pasta | **não** |
+| Quarentena do sistema | **não** — nasce do `--move=` de quem agendou |
+
+Metade de cima funciona; a metade da varredura fica vazia. Não é bug: a distro não
+agenda varredura, e o programa não deve inventar uma.
+
+Para preencher, há extras **opcionais e independentes** em [`contrib/extras/`](contrib/extras),
+cada um com instalador próprio — varredura diária, monitor de Downloads e
+publicação das estatísticas de quarentena. Instale só o que quiser, ou use como
+referência para escrever o seu.
+
 ## Instalação
 
 ```sh

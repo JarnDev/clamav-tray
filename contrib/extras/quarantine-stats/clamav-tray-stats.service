@@ -1,0 +1,8 @@
+[Unit]
+Description=Publish ClamAV quarantine stats for clamav-tray
+Documentation=https://github.com/JarnDev/clamav-tray
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/publish-quarantine-stats.sh
+EnvironmentFile=-/etc/default/clamav-tray-stats

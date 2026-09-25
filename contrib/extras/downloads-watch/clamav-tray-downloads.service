@@ -1,0 +1,21 @@
+[Unit]
+Description=ClamAV Downloads watcher (clamav-tray extra)
+Documentation=https://github.com/JarnDev/clamav-tray
+After=clamav-daemon.service
+Wants=clamav-daemon.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/clamav-tray-downloads.sh
+EnvironmentFile=/etc/default/clamav-tray-downloads
+# `always` e nao `on-failure`: o systemd considera SIGTERM uma parada LIMPA,
+# entao on-failure nao traria o vigia de volta quando algo o matasse — que e
+# exatamente o caso em que voce nao quer ficar sem vigia.
+Restart=always
+RestartSec=10
+# Trava contra loop se o script quebrar de verdade (inotify ausente, por exemplo).
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target

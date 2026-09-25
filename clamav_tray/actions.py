@@ -247,7 +247,9 @@ def _spawn(argv: list[str]) -> bool:
         return False
 
 
-def list_quarantine(path: Path, terminal: str | None = None) -> bool:
+def list_quarantine(
+    path: Path, terminal: str | None = None, privileged: bool = True
+) -> bool:
     """Lista a quarentena num TERMINAL, nunca num gerenciador de arquivos.
 
     Duas razoes, ambas praticas:
@@ -261,4 +263,5 @@ def list_quarantine(path: Path, terminal: str | None = None) -> bool:
        malicioso com o thumbnailer e um jeito ruim de olhar para ele. `ls` nao
        abre nada.
     """
-    return run_in_terminal(f"sudo ls -la {_quote(str(path))}", terminal)
+    prefix = "sudo " if privileged else ""
+    return run_in_terminal(f"{prefix}ls -la {_quote(str(path))}", terminal)
