@@ -1,0 +1,22 @@
+# Copie para ~/.config/clamav-tray/config.toml. TUDO e opcional: sem este arquivo
+# o programa descobre as unidades pelo glob `clam*` e os caminhos pelo `clamconf`.
+
+[general]
+refresh_secs = 10
+# terminal = "kitty"      # padrao: detecta (x-terminal-emulator, xdg-terminal-exec, ...)
+
+[paths]
+# O clamconf sabe o socket e o log do DAEMON. Ele NAO sabe onde a sua varredura
+# escreve — isso depende de como voce agendou. Se o menu disser "sem resultado
+# registrado", e este o campo que falta.
+# scan_log   = "/var/log/clamav/scan.log"
+# quarantine = "/var/quarantine/clamav"
+# socket     = "/run/clamd.scan/clamd.sock"    # Fedora
+
+[units]
+# Sem isto, o glob `clam*` acha tudo — inclusive `clamd@scan.service` no Fedora.
+# Preencha so para restringir ou acrescentar unidade fora do padrao de nome.
+# watch = ["clamav-daemon.service", "clamav-freshclam.service", "clamav-scan.timer"]
+
+[units.labels]
+# "clamav-scan-downloads.service" = "Monitor de Downloads"

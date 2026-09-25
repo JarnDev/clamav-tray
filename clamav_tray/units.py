@@ -1,0 +1,148 @@
+"""Estado das unidades do systemd.
+
+Modulo 2 da migracao. Ainda sincrono, mas ja fala com o mundo.
+
+Duas decisoes que carregam o modulo inteiro:
+
+1. UMA chamada ao systemctl para TODAS as unidades, nao uma por unidade. O script
+   original gastava 4 processos a cada 10s — ~34 mil por dia, so para ler quatro
+   strings.
+
+2. A ordem dos campos na saida do `systemctl show` NAO e estavel: `Id` aparece em
+   posicoes diferentes entre blocos. Por isso o parser monta dicionario e nunca
+   confia em posicao. Chave ausente e normal (um `.timer` nao tem `Type`).
+"""
+
+from __future__ import annotations
+
+import subprocess
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from enum import Enum
+
+PROPS = [
+    "Id", "Type", "ActiveState", "SubState", "Result",
+    "ExecMainStartTimestamp", "InactiveEnterTimestamp",
+    "NextElapseUSecRealtime", "LastTriggerUSec",
+]
+
+
+class Kind(Enum):
+    DAEMON = "daemon"
+    """Fica no ar de proposito. Rodando = saudavel."""
+
+    JOB = "job"
+    """Roda e termina. Rodando = EM EXECUCAO agora."""
+
+    TIMER = "timer"
+    """Agenda outra unidade. Esperando = saudavel."""
+
+
+@dataclass(frozen=True)
+class Unit:
+    id: str
+    kind: Kind
+    active_state: str
+    sub_state: str
+    result: str
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    next_elapse: datetime | None = None
+
+    @property
+    def is_running_job(self) -> bool:
+        """Tarefa em execucao AGORA.
+
+        Sem a distincao por `kind`, um monitor de pasta (que fica `active running`
+        para sempre) seria lido como "varredura em andamento" eternamente.
+        """
+        return self.kind is Kind.JOB and self.active_state in ("activating", "active")
+
+    @property
+    def is_healthy(self) -> bool:
+        if self.kind is Kind.DAEMON:
+            return self.active_state == "active"
+        if self.kind is Kind.TIMER:
+            return self.active_state == "active"
+        # Tarefa: falhou de verdade so quando o systemd diz que falhou. O veredito
+        # da varredura em si vem do SCAN SUMMARY, nao daqui — ver scan.py.
+        return self.active_state != "failed"
+
+    @property
+    def elapsed_secs(self) -> int | None:
+        if self.started_at is None:
+            return None
+        return int((datetime.now(timezone.utc) - self.started_at).total_seconds())
+
+
+def _classify(unit_id: str, type_: str) -> Kind:
+    if unit_id.endswith(".timer"):
+        return Kind.TIMER
+    # `oneshot` e a assinatura de "roda e termina". `simple`/`notify`/`forking`
+    # descrevem processo que fica de pe.
+    return Kind.JOB if type_ == "oneshot" else Kind.DAEMON
+
+
+def _parse_ts(value: str) -> datetime | None:
+    """systemd imprime 'Fri 2026-09-25 03:09:23 -03'; vazio quando nunca ocorreu."""
+    value = value.strip()
+    if not value or value == "n/a":
+        return None
+    try:
+        return datetime.strptime(value, "%a %Y-%m-%d %H:%M:%S %z")
+    except ValueError:
+        return None
+
+
+def discover(glob: str = "clam*") -> list[str]:
+    """Nomes de unidade existentes.
+
+    O glob e o que torna o programa portavel sem configuracao: pega
+    `clamav-daemon.service` (Debian, Ubuntu, Arch) e `clamd@scan.service`
+    (Fedora, que usa unidade templated) com a mesma regra.
+    """
+    out = _run(["systemctl", "list-units", "--all", "--no-pager", "--no-legend", glob])
+    ids = []
+    for line in out.splitlines():
+        for field in line.split():
+            if field.endswith((".service", ".timer", ".socket", ".path")):
+                ids.append(field)
+                break
+    return ids
+
+
+def query(unit_ids: list[str]) -> dict[str, Unit]:
+    """Estado de varias unidades em UMA chamada."""
+    if not unit_ids:
+        return {}
+    out = _run(["systemctl", "show", "-p", ",".join(PROPS), *unit_ids])
+
+    units: dict[str, Unit] = {}
+    for block in out.split("\n\n"):
+        fields = dict(
+            line.split("=", 1) for line in block.splitlines() if "=" in line
+        )
+        unit_id = fields.get("Id")
+        if not unit_id:
+            continue
+        units[unit_id] = Unit(
+            id=unit_id,
+            kind=_classify(unit_id, fields.get("Type", "")),
+            active_state=fields.get("ActiveState", "unknown"),
+            sub_state=fields.get("SubState", "unknown"),
+            result=fields.get("Result", "unknown"),
+            started_at=_parse_ts(fields.get("ExecMainStartTimestamp", "")),
+            finished_at=_parse_ts(fields.get("InactiveEnterTimestamp", "")),
+            next_elapse=_parse_ts(fields.get("NextElapseUSecRealtime", "")),
+        )
+    return units
+
+
+def _run(argv: list[str]) -> str:
+    """systemctl sai com codigo != 0 em varias situacoes normais (unidade falhada,
+    inexistente). O texto vem junto, entao nunca levantamos por causa disso."""
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True, timeout=10)
+        return proc.stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""

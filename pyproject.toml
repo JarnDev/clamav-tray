@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clamav-tray"
+version = "0.1.0"
+description = "Indicador de bandeja para ClamAV gerenciado por systemd"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"   # tomllib entrou na 3.11
+classifiers = [
+    "Environment :: X11 Applications :: GTK",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: System :: Monitoring",
+]
+# PyGObject e AppIndicator vem do gerenciador de pacotes da distro, nao do pip:
+# compilar PyGObject em virtualenv exige toolchain e headers do GTK. Instalar
+# python3-gi pelo sistema e o caminho suportado em qualquer distro relevante.
+dependencies = []
+
+[project.scripts]
+clamav-tray = "clamav_tray.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/jarndev-ltda/clamav-tray"
+
+[tool.setuptools]
+packages = ["clamav_tray"]
