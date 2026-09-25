@@ -38,6 +38,11 @@ CATALOGS: dict[str, dict[str, str]] = {
         "Last": "Última",
         "Next": "Próxima",
         "History": "Histórico",
+        "Quarantine": "Quarentena",
+        "empty": "vazia",
+        "{n} file": "{n} arquivo",
+        "{n} files": "{n} arquivos",
+        "needs root to list": "precisa de root para listar",
         "unavailable": "indisponível",
         "no journal access (group adm or systemd-journal)":
             "sem acesso ao journal (grupo adm ou systemd-journal)",
@@ -53,7 +58,7 @@ CATALOGS: dict[str, dict[str, str]] = {
         "{n} unreadable files": "{n} arquivos ilegíveis",
         # Acoes
         "Scan my home now": "Varrer minha home agora",
-        "Open quarantine": "Abrir quarentena",
+        "List quarantine": "Listar quarentena",
         "View logs": "Ver logs",
         "Settings": "Configurações",
         "Quit": "Sair",

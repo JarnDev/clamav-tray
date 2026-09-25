@@ -15,6 +15,7 @@ Duas decisoes que carregam o modulo inteiro:
 
 from __future__ import annotations
 
+import os
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -48,6 +49,10 @@ class Unit:
     started_at: datetime | None = None
     finished_at: datetime | None = None
     next_elapse: datetime | None = None
+    user_scope: bool = False
+    """Unidade do barramento do usuario (`systemctl --user`). A varredura sob
+    demanda vive la: `clamdscan --fdpass` nao precisa de root, porque quem abre os
+    arquivos e o proprio usuario."""
 
     @property
     def is_running_job(self) -> bool:
@@ -56,6 +61,10 @@ class Unit:
         Sem a distincao por `kind`, um monitor de pasta (que fica `active running`
         para sempre) seria lido como "varredura em andamento" eternamente.
         """
+        # `exited` e a marca de "terminou mas a unidade ficou" (--remain-after-exit).
+        # Sem esta excecao a varredura sob demanda apareceria como eterna.
+        if self.sub_state == "exited":
+            return False
         return self.kind is Kind.JOB and self.active_state in ("activating", "active")
 
     @property
@@ -75,9 +84,18 @@ class Unit:
         return int((datetime.now(timezone.utc) - self.started_at).total_seconds())
 
 
+# Prefixo das unidades transitorias que ESTE programa cria com systemd-run.
+TRANSIENT_PREFIX = "clamav-tray-scan"
+
+
 def _classify(unit_id: str, type_: str) -> Kind:
     if unit_id.endswith(".timer"):
         return Kind.TIMER
+    # Unidade criada pelo systemd-run nao declara Type, entao cairia em DAEMON e
+    # seria lida como "servico no ar" em vez de "varredura rodando". Como o nome e
+    # nosso, a regra e explicita.
+    if unit_id.startswith(TRANSIENT_PREFIX):
+        return Kind.JOB
     # `oneshot` e a assinatura de "roda e termina". `simple`/`notify`/`forking`
     # descrevem processo que fica de pe.
     return Kind.JOB if type_ == "oneshot" else Kind.DAEMON
@@ -127,14 +145,18 @@ def _parse_ts(value: str) -> datetime | None:
     return None
 
 
-def discover(glob: str = "clam*") -> list[str]:
+def _systemctl(user: bool, *args: str) -> list[str]:
+    return ["systemctl", *(["--user"] if user else []), *args]
+
+
+def discover(glob: str = "clam*", user: bool = False) -> list[str]:
     """Nomes de unidade existentes.
 
     O glob e o que torna o programa portavel sem configuracao: pega
     `clamav-daemon.service` (Debian, Ubuntu, Arch) e `clamd@scan.service`
     (Fedora, que usa unidade templated) com a mesma regra.
     """
-    out = _run(["systemctl", "list-units", "--all", "--no-pager", "--no-legend", glob])
+    out = _run(_systemctl(user, "list-units", "--all", "--no-pager", "--no-legend", glob))
     ids = []
     for line in out.splitlines():
         for field in line.split():
@@ -144,11 +166,11 @@ def discover(glob: str = "clam*") -> list[str]:
     return ids
 
 
-def query(unit_ids: list[str]) -> dict[str, Unit]:
+def query(unit_ids: list[str], user: bool = False) -> dict[str, Unit]:
     """Estado de varias unidades em UMA chamada."""
     if not unit_ids:
         return {}
-    out = _run(["systemctl", "show", "-p", ",".join(PROPS), *unit_ids])
+    out = _run(_systemctl(user, "show", "-p", ",".join(PROPS), *unit_ids))
 
     units: dict[str, Unit] = {}
     for block in out.split("\n\n"):
@@ -161,6 +183,7 @@ def query(unit_ids: list[str]) -> dict[str, Unit]:
         units[unit_id] = Unit(
             id=unit_id,
             kind=_classify(unit_id, fields.get("Type", "")),
+            user_scope=user,
             active_state=fields.get("ActiveState", "unknown"),
             sub_state=fields.get("SubState", "unknown"),
             result=fields.get("Result", "unknown"),
@@ -179,3 +202,54 @@ def _run(argv: list[str]) -> str:
         return proc.stdout
     except (OSError, subprocess.SubprocessError):
         return ""
+
+
+def query_all(system_ids: list[str]) -> dict[str, Unit]:
+    """Junta os dois barramentos.
+
+    As unidades do ClamAV instaladas pela distro vivem no barramento do SISTEMA.
+    A varredura sob demanda que este programa lanca vive no do USUARIO, porque
+    `clamdscan --fdpass` nao precisa de root — quem abre os arquivos e voce.
+
+    Consultar so um dos dois deixa o botao "varrer agora" invisivel para o
+    indicador, que foi exatamente o sintoma relatado.
+    """
+    merged = query(system_ids)
+    transient = [u for u in discover(f"{TRANSIENT_PREFIX}*", user=True)]
+    if transient:
+        merged.update(query(transient, user=True))
+    return merged
+
+
+def scan_process_running() -> bool:
+    """Rede de seguranca: qualquer clamdscan/clamscan do usuario, venha de onde vier.
+
+    Cobre varredura lancada fora do tray — terminal, cron, outro programa. Nao da
+    para ler o resultado dela, mas dizer "esta varrendo" ja evita que o indicador
+    afirme calmaria enquanto o disco arde.
+    """
+    try:
+        proc = subprocess.run(
+            ["pgrep", "-u", str(os.getuid()), "-x", "clamdscan,clamscan"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return proc.returncode == 0 and bool(proc.stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def pick_scan_unit(state: dict[str, Unit]) -> Unit | None:
+    """Qual tarefa representa "a varredura" na interface.
+
+    A sob demanda (barramento do usuario) tem precedencia sobre a agendada: e a
+    mais recente e e a que a pessoa acabou de pedir.
+
+    Mora aqui, e nao na camada grafica, porque e regra sobre unidades — e porque
+    ja houve divergencia: o modo --dump reimplementou com um `next()` que pegava a
+    primeira do dicionario e mostrava o resultado errado.
+    """
+    jobs = [u for u in state.values() if u.kind is Kind.JOB]
+    if not jobs:
+        return None
+    jobs.sort(key=lambda u: (not u.user_scope, u.id))
+    return jobs[0]

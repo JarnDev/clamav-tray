@@ -35,10 +35,13 @@ def from_log_file(path: Path | None) -> str | None:
         return None
 
 
-def from_journal(unit_id: str, lines: int = 400) -> str | None:
+def from_journal(unit_id: str, lines: int = 400, user: bool = False) -> str | None:
+    """`user=True` le o journal do USUARIO, onde cai a varredura sob demanda
+    lancada com `systemd-run --user`. Esse journal nao exige grupo nenhum: e seu."""
     try:
         proc = subprocess.run(
-            ["journalctl", "-u", unit_id, "-n", str(lines), "--no-pager", "-o", "cat"],
+            ["journalctl", *(["--user"] if user else []),
+             "-u", unit_id, "-n", str(lines), "--no-pager", "-o", "cat"],
             capture_output=True, text=True, timeout=10,
         )
     except (OSError, subprocess.SubprocessError):
@@ -48,8 +51,16 @@ def from_journal(unit_id: str, lines: int = 400) -> str | None:
     return proc.stdout or None
 
 
-def last_summary(log_file: Path | None, unit_id: str | None) -> str | None:
-    """Ultimo trecho que possa conter um SCAN SUMMARY, da fonte que responder."""
+def last_summary(
+    log_file: Path | None, unit_id: str | None, user: bool = False
+) -> str | None:
+    """Ultimo trecho que possa conter um SCAN SUMMARY, da fonte que responder.
+
+    Ordem importa: a varredura sob demanda (unidade do usuario) e mais recente que
+    o log da agendada, entao quando ela existe o journal dela vem primeiro.
+    """
+    if user and unit_id and (text := from_journal(unit_id, user=True)):
+        return _tail_after_last_summary(text)
     if text := from_log_file(log_file):
         return _tail_after_last_summary(text)
     if unit_id and (text := from_journal(unit_id)):

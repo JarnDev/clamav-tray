@@ -76,10 +76,18 @@ class Tray:
             self.cfg = config_mod.load()
             i18n.set_language(self.cfg.language)
             self.unit_ids = self.cfg.units or units.discover()
-        state = units.query(self.unit_ids)
+        state = units.query_all(self.unit_ids)
+        job = units.pick_scan_unit(state)
         running = [u for u in state.values() if u.is_running_job]
+        # Rede de seguranca: varredura lancada fora do tray (terminal, cron) nao e
+        # unidade nenhuma, mas o disco esta trabalhando do mesmo jeito.
+        loose_scan = not running and units.scan_process_running()
         result = scan.parse_summary(
-            history.last_summary(self.cfg.scan_log, self._scan_unit(state)) or ""
+            history.last_summary(
+                self.cfg.scan_log,
+                job.id if job else None,
+                user=bool(job and job.user_scope),
+            ) or ""
         )
         if result.duration_secs:
             self._last_duration = result.duration_secs
@@ -88,31 +96,25 @@ class Tray:
         # pode ser escondida por uma varredura em andamento.
         broken = [u for u in state.values() if not u.is_healthy]
         if result.is_alarming:
-            key, color = "warn", widgets.RED
-        elif running:
-            key, color = "busy", widgets.BLUE
+            key, mark = "warn", widgets.BAD
+        elif running or loose_scan:
+            key, mark = "busy", widgets.BUSY
         elif broken:
-            key, color = "warn", widgets.AMBER
+            key, mark = "warn", widgets.WARN
         else:
-            key, color = "ok", widgets.GREEN
+            key, mark = "ok", widgets.OK
 
         self.indicator.set_icon_full(ICONS[key], "ClamAV")
         self.indicator.set_menu(
-            self._build_menu(state, running, broken, result, color)
+            self._build_menu(state, running, broken, result, mark, loose_scan)
         )
         return True  # mantem o timer vivo
 
-    def _scan_unit(self, state: dict[str, units.Unit]) -> str | None:
-        for unit_id, unit in state.items():
-            if unit.kind is units.Kind.JOB:
-                return unit_id
-        return None
-
-    def _headline(self, running, broken, result) -> tuple[str, str]:
+    def _headline(self, running, broken, result, loose=False) -> tuple[str, str]:
         if result.is_alarming:
             n = result.infected
             return (_("Threat detected"), _("{n} file(s) quarantined", n=n))
-        if running:
+        if running or loose:
             return (_("Scanning"), "")
         if broken:
             nomes = ", ".join(self.cfg.label_for(u.id) for u in broken[:2])
@@ -122,20 +124,20 @@ class Tray:
 
     # ------------------------------------------------------------------ menu
 
-    def _build_menu(self, state, running, broken, result, color) -> Gtk.Menu:
+    def _build_menu(self, state, running, broken, result, mark, loose_scan=False) -> Gtk.Menu:
         menu = Gtk.Menu()
         menu.set_reserve_toggle_size(False)
 
-        title, subtitle = self._headline(running, broken, result)
-        menu.append(widgets.header(title, subtitle, color))
+        title, subtitle = self._headline(running, broken, result, loose_scan)
+        menu.append(widgets.header(title, subtitle, mark))
         menu.append(widgets.separator())
 
         # --- varredura ---------------------------------------------------
         menu.append(widgets.section(_("Scan")))
 
-        if running:
-            job = running[0]
-            elapsed = job.elapsed_secs or 0
+        if running or loose_scan:
+            job = running[0] if running else None
+            elapsed = (job.elapsed_secs if job else None) or 0
             total = self._last_duration or _FALLBACK_SCAN_SECS
             menu.append(
                 widgets.progress_row(
@@ -150,15 +152,15 @@ class Tray:
                 widgets.status_row(
                     _("Last"),
                     self._when_last(state),
-                    widgets.RED if result.is_alarming else (
-                        widgets.DIM if result.verdict is Verdict.UNKNOWN else widgets.GREEN
+                    widgets.BAD if result.is_alarming else (
+                        widgets.IDLE if result.verdict is Verdict.UNKNOWN else widgets.OK
                     ),
                     text.describe(result),
                 )
             )
 
         if nxt := self._next_scan(state):
-            menu.append(widgets.status_row(_("Next"), nxt, widgets.DIM))
+            menu.append(widgets.status_row(_("Next"), nxt, widgets.IDLE))
 
         # --- servicos ----------------------------------------------------
         menu.append(widgets.section(_("Services")))
@@ -174,14 +176,26 @@ class Tray:
                 widgets.status_row(
                     self.cfg.label_for(unit.id),
                     unit.sub_state,
-                    widgets.GREEN if unit.is_healthy else widgets.AMBER,
+                    widgets.OK if unit.is_healthy else widgets.WARN,
                 )
             )
+
+        if self.cfg.quarantine:
+            n = config_mod.quarantine_count(self.cfg.quarantine)
+            if n is None:
+                value, mark = _("needs root to list"), widgets.IDLE
+            elif n == 0:
+                value, mark = _("empty"), widgets.OK
+            else:
+                value = _("{n} file" if n == 1 else "{n} files", n=n)
+                mark = widgets.WARN
+            menu.append(widgets.status_row(_("Quarantine"), value, mark,
+                                           str(self.cfg.quarantine)))
 
         if not history.journal_readable() and self.cfg.scan_log is None:
             menu.append(
                 widgets.status_row(
-                    _("History"), _("unavailable"), widgets.DIM,
+                    _("History"), _("unavailable"), widgets.IDLE,
                     _("no journal access (group adm or systemd-journal)"),
                 )
             )
@@ -192,7 +206,7 @@ class Tray:
             widgets.action(_("Scan my home now"), "media-playback-start-symbolic", self._on_scan)
         )
         if self.cfg.quarantine:
-            menu.append(widgets.action(_("Open quarantine"), "folder-symbolic", self._on_quarantine))
+            menu.append(widgets.action(_("List quarantine"), "folder-symbolic", self._on_quarantine))
         if self.cfg.scan_log or self.cfg.log_file:
             menu.append(widgets.action(_("View logs"), "text-x-generic-symbolic", self._on_logs))
         menu.append(widgets.action(_("Settings"), "preferences-system-symbolic", self._on_settings))
@@ -219,11 +233,10 @@ class Tray:
     # --------------------------------------------------------------- acoes
 
     def _on_scan(self, *_a):
-        cmd = actions.scan_command(Path.home(), self.cfg.socket, self.cfg.quarantine)
-        actions.run_in_terminal(cmd, self.cfg.terminal)
+        actions.start_scan(Path.home(), self.cfg.socket, self.cfg.quarantine)
 
     def _on_quarantine(self, *_a):
-        actions.open_path(self.cfg.quarantine)
+        actions.list_quarantine(self.cfg.quarantine, self.cfg.terminal)
 
     def _on_settings(self, *_a):
         """Abre o arquivo de config, criando um modelo comentado se nao existir.

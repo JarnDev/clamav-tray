@@ -18,12 +18,12 @@ def main() -> int:
         from . import history, scan, text, units
 
         ids = cfg.units or units.discover()
-        state = units.query(ids)
+        state = units.query_all(ids)
         for unit in sorted(state.values(), key=lambda u: u.id):
             extra = f"  ha {scan.human_duration(unit.elapsed_secs)}" if unit.is_running_job and unit.elapsed_secs else ""
             print(f"{unit.id:34} {unit.kind.value:7} {unit.active_state:10} {unit.sub_state:10}{extra}")
-        job = next((u.id for u in state.values() if u.kind is units.Kind.JOB), None)
-        result = scan.parse_summary(history.last_summary(cfg.scan_log, job) or "")
+        job = units.pick_scan_unit(state)
+        result = scan.parse_summary(history.last_summary(cfg.scan_log, job.id if job else None, user=bool(job and job.user_scope)) or "")
         print(f"\nultima varredura: {text.describe(result)}  [{result.verdict.value}]")
         print(f"scan_log: {cfg.scan_log}   daemon_log: {cfg.log_file}   socket: {cfg.socket}")
         return 0

@@ -5,9 +5,19 @@ so como uma linha se parece. E a parte que NAO vai para Rust (a camada grafica
 sera reescrita com ksni, que tem outro modelo de menu), entao mante-la isolada
 evita que decisao de aparencia contamine a logica.
 
-GTK 3 permite trocar o filho de um Gtk.MenuItem por qualquer widget. Um menu de
-bandeja moderno nao e uma lista de strings: e um bloco com titulo, valor alinhado
-a direita e detalhe secundario menor.
+DUAS LICOES PAGAS COM BUG, que explicam por que o codigo aqui e mais simples do
+que a primeira versao:
+
+1. Linha informativa usa `set_sensitive(False)`. E o unico jeito de o GTK nao
+   destacar no hover nem aceitar clique. O efeito colateral e esmaecer o texto —
+   e isso SOBREPOE `foreground` de markup Pango, deixando todo ponto de status
+   cinza. A saida nao e abrir mao do insensivel: e usar EMOJI como ponto. Emoji
+   sao glifos coloridos pela fonte, entao a cor sobrevive ao esmaecimento.
+
+2. Caixa aninhada dentro de Gtk.MenuItem nao negocia largura de forma confiavel:
+   o rotulo alinhado a direita e a linha de detalhe simplesmente nao apareciam.
+   Cada linha agora e UM Gtk.Label com markup, podendo conter quebra de linha.
+   Perde-se o alinhamento a direita; ganha-se aparecer.
 """
 
 from __future__ import annotations
@@ -15,95 +25,55 @@ from __future__ import annotations
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Pango  # noqa: E402
+from gi.repository import Gtk  # noqa: E402
 
-# Paleta Adwaita. Cor fixa em vez de tema porque um ponto de status precisa
-# significar a mesma coisa em qualquer tema — inclusive claro e escuro.
-GREEN = "#2ec27e"
-RED = "#e01b24"
-AMBER = "#f5c211"
-BLUE = "#3584e4"
+# Cinza para texto secundario. Sobrevive porque e apenas *mais* apagado que o
+# esmaecimento do GTK, nunca mais vivo.
 DIM = "#9a9996"
 
-DOT = "●"
+# Nomes de estado, nao de cor: quem chama nao deveria escolher "verde", e sim
+# dizer que esta tudo bem. Trocar o simbolo depois nao mexe em tray.py.
+OK = "🟢"
+WARN = "🟠"
+BAD = "🔴"
+BUSY = "🔵"
+IDLE = "⚪"
 
 
-def dot(color: str) -> str:
-    return f'<span foreground="{color}" size="large">{DOT}</span>'
-
-
-def header(title: str, subtitle: str, color: str) -> Gtk.MenuItem:
+def header(title: str, subtitle: str, mark: str) -> Gtk.MenuItem:
     """Bloco de topo: diz o veredito antes de o usuario ler qualquer linha."""
-    item = Gtk.MenuItem()
-    _make_inert(item)
-    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
-    box.set_margin_top(4)
-    box.set_margin_bottom(4)
-
-    top = Gtk.Label(xalign=0)
-    top.set_markup(f'{dot(color)}  <b>{_esc(title)}</b>')
-    box.pack_start(top, False, False, 0)
-
+    markup = f"{mark}  <b>{_esc(title)}</b>"
     if subtitle:
-        sub = Gtk.Label(xalign=0)
-        sub.set_markup(f'<span foreground="{DIM}" size="small">{_esc(subtitle)}</span>')
-        sub.set_margin_start(20)
-        box.pack_start(sub, False, False, 0)
-
-    item.add(box)
-    return item
+        markup += f'\n<span foreground="{DIM}" size="small">     {_esc(subtitle)}</span>'
+    return _info_item(markup)
 
 
-def status_row(label: str, value: str, color: str, detail: str = "") -> Gtk.MenuItem:
-    """Nome a esquerda, estado a direita, detalhe embaixo em cinza.
-
-    O alinhamento a direita e o que faz a coluna de estados virar coluna de
-    verdade, legivel de relance, em vez de texto corrido.
-    """
-    item = Gtk.MenuItem()
-    _make_inert(item)
-    outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-
-    line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-    left = Gtk.Label(xalign=0)
-    left.set_markup(f"{dot(color)}  {_esc(label)}")
-    left.set_ellipsize(Pango.EllipsizeMode.END)
-    line.pack_start(left, True, True, 0)
-
-    right = Gtk.Label(xalign=1)
-    right.set_markup(f'<span foreground="{DIM}" size="small">{_esc(value)}</span>')
-    line.pack_end(right, False, False, 0)
-    outer.pack_start(line, False, False, 0)
-
+def status_row(label: str, value: str, mark: str, detail: str = "") -> Gtk.MenuItem:
+    """Ponto, nome, valor secundario e — opcionalmente — detalhe embaixo."""
+    markup = f"{mark}  {_esc(label)}"
+    if value:
+        markup += f'   <span foreground="{DIM}" size="small">{_esc(value)}</span>'
     if detail:
-        sub = Gtk.Label(xalign=0)
-        sub.set_markup(f'<span foreground="{DIM}" size="small">{_esc(detail)}</span>')
-        sub.set_margin_start(20)
-        outer.pack_start(sub, False, False, 0)
-
-    item.add(outer)
-    return item
+        markup += f'\n<span foreground="{DIM}" size="small">     {_esc(detail)}</span>'
+    return _info_item(markup)
 
 
 def progress_row(label: str, fraction: float | None, detail: str) -> Gtk.MenuItem:
-    """Barra para varredura em andamento.
+    """Varredura em andamento, com barra de progresso.
 
     `fraction=None` vira barra pulsante: o clamdscan nao informa progresso, e
     fingir uma porcentagem seria inventar. Pulsar diz "esta vivo" sem mentir
     quanto falta.
     """
     item = Gtk.MenuItem()
-    _make_inert(item)
-    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
-    box.set_margin_top(2)
-    box.set_margin_bottom(2)
+    item.set_sensitive(False)
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
 
     top = Gtk.Label(xalign=0)
-    top.set_markup(f'{dot(BLUE)}  <b>{_esc(label)}</b>')
+    top.set_markup(f"{BUSY}  <b>{_esc(label)}</b>")
     box.pack_start(top, False, False, 0)
 
     bar = Gtk.ProgressBar()
-    bar.set_margin_start(20)
     if fraction is None:
         bar.pulse()
     else:
@@ -113,7 +83,6 @@ def progress_row(label: str, fraction: float | None, detail: str) -> Gtk.MenuIte
     if detail:
         sub = Gtk.Label(xalign=0)
         sub.set_markup(f'<span foreground="{DIM}" size="small">{_esc(detail)}</span>')
-        sub.set_margin_start(20)
         box.pack_start(sub, False, False, 0)
 
     item.add(box)
@@ -122,22 +91,17 @@ def progress_row(label: str, fraction: float | None, detail: str) -> Gtk.MenuIte
 
 def section(title: str) -> Gtk.MenuItem:
     """Rotulo de secao: maiusculas pequenas em cinza, como painel de sistema."""
-    item = Gtk.MenuItem()
-    _make_inert(item)
-    lbl = Gtk.Label(xalign=0)
-    lbl.set_markup(
-        f'<span foreground="{DIM}" size="x-small" letter_spacing="1200">'
+    return _info_item(
+        f'<span foreground="{DIM}" size="x-small" letter_spacing="1500">'
         f"{_esc(title.upper())}</span>"
     )
-    lbl.set_margin_top(6)
-    item.add(lbl)
-    return item
 
 
 def action(label: str, icon_name: str, handler) -> Gtk.MenuItem:
-    """Acao com icone do tema, em vez de emoji."""
+    """Acao com icone do tema. Sensivel de proposito: esta SIM e clicavel, e a
+    diferenca de comportamento no hover e o que distingue as duas coisas."""
     item = Gtk.MenuItem()
-    box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
     box.pack_start(
         Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.MENU), False, False, 0
     )
@@ -151,19 +115,22 @@ def separator() -> Gtk.SeparatorMenuItem:
     return Gtk.SeparatorMenuItem()
 
 
-def _make_inert(item: Gtk.MenuItem) -> None:
-    """Linha informativa: nao reage a clique, mas NAO usa set_sensitive(False).
+def _info_item(markup: str) -> Gtk.MenuItem:
+    """Uma linha que informa e nao reage.
 
-    O GTK esmaece widget insensivel, e isso SOBREPOE a cor do Pango — os pontos de
-    status saiam todos cinza, sem distinguir verde de vermelho, que e justamente a
-    informacao. Em vez disso, o item continua sensivel e apenas engole o clique.
+    `set_sensitive(False)` e o que remove destaque no hover e clique. O preco e o
+    esmaecimento — aceitavel porque o unico elemento que PRECISA de cor e o ponto,
+    e ele e emoji.
     """
-    item.connect("button-press-event", lambda *_a: True)
-    item.connect("activate", lambda *_a: None)
+    item = Gtk.MenuItem()
+    item.set_sensitive(False)
+    lbl = Gtk.Label(xalign=0)
+    lbl.set_markup(markup)
+    lbl.set_line_wrap(False)
+    item.add(lbl)
+    return item
 
 
 def _esc(text: str) -> str:
     """Pango falha silenciosamente com markup invalido; nome de unidade pode ter &."""
-    return (
-        text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    )
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

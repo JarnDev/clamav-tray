@@ -100,6 +100,7 @@ def load() -> Config:
     if v := paths.get("DatabaseDirectory"):
         cfg.database_dir = Path(v)
     cfg.scan_log = _guess_scan_log(cfg.log_file)
+    cfg.quarantine = _guess_quarantine()
 
     if CONFIG_PATH.is_file():
         try:
@@ -211,3 +212,44 @@ def changed_on_disk(cfg: Config) -> bool:
         return CONFIG_PATH.stat().st_mtime != cfg.loaded_from_mtime
     except OSError:
         return cfg.loaded_from_mtime is not None
+
+
+# O clamconf nao conhece quarentena: ela nasce do `--move=` de quem agendou a
+# varredura, nao da configuracao do ClamAV. Nao ha caminho padrao na especificacao;
+# estes sao os que aparecem na pratica.
+_QUARANTINE_PATHS = (
+    "/var/quarantine/clamav",
+    "/var/lib/clamav/quarantine",
+    "/var/spool/clamav/quarantine",
+)
+
+
+def _guess_quarantine() -> Path | None:
+    """Acha a quarentena por caminho conhecido.
+
+    `is_dir()` responde True mesmo sem permissao de LEITURA, o que e o que
+    queremos: o diretorio existir ja justifica mostrar a linha no menu. Se dara
+    para listar o conteudo e outra questao, decidida na hora de mostrar.
+    """
+    for candidate in _QUARANTINE_PATHS:
+        path = Path(candidate)
+        try:
+            if path.is_dir():
+                return path
+        except OSError:
+            continue
+    return None
+
+
+def quarantine_count(path: Path | None) -> int | None:
+    """Quantos arquivos ha na quarentena, ou None se nao der para ler.
+
+    None NAO e zero. Quarentena costuma ser `750` dono root de proposito — e
+    malware guardado — entao nao poder contar e o caso NORMAL, nao erro.
+    """
+    if path is None:
+        return None
+    try:
+        return sum(1 for _ in path.iterdir())
+    except OSError:
+        return None
