@@ -450,7 +450,10 @@ class Tray:
             rows.append(widgets.line(_shorten(self.cfg.user_quarantine)))
 
         if rows:
-            rows.insert(0, widgets.section(_("Quarantine")))
+            # Mesma razao da secao de dispositivos: sem tooltip no dbusmenu, a
+            # unica forma de dizer que a linha responde ao clique e o texto.
+            titulo = f'{_("Quarantine")} · {_("click to list")}'
+            rows.insert(0, widgets.section(titulo))
             rows.insert(0, widgets.separator())
         return rows
 
