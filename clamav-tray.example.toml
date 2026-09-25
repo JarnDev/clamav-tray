@@ -1,22 +1,24 @@
-# Copie para ~/.config/clamav-tray/config.toml. TUDO e opcional: sem este arquivo
-# o programa descobre as unidades pelo glob `clam*` e os caminhos pelo `clamconf`.
+# clamav-tray — all settings are optional.
+# Without this file the program discovers units via the `clam*` glob and paths
+# via `clamconf`. Changes are picked up automatically, no restart needed.
 
 [general]
+# "en" (default), "pt_BR", or "auto" to follow the system locale.
+language = "en"
 refresh_secs = 10
-# terminal = "kitty"      # padrao: detecta (x-terminal-emulator, xdg-terminal-exec, ...)
+# terminal = "kitty"     # default: autodetect
 
 [paths]
-# O clamconf sabe o socket e o log do DAEMON. Ele NAO sabe onde a sua varredura
-# escreve — isso depende de como voce agendou. Se o menu disser "sem resultado
-# registrado", e este o campo que falta.
+# clamconf knows the DAEMON socket and log. It does NOT know where your scan
+# writes — that depends on how you scheduled it. If the menu says "no result
+# recorded", this is the missing field.
 # scan_log   = "/var/log/clamav/scan.log"
 # quarantine = "/var/quarantine/clamav"
-# socket     = "/run/clamd.scan/clamd.sock"    # Fedora
 
 [units]
-# Sem isto, o glob `clam*` acha tudo — inclusive `clamd@scan.service` no Fedora.
-# Preencha so para restringir ou acrescentar unidade fora do padrao de nome.
-# watch = ["clamav-daemon.service", "clamav-freshclam.service", "clamav-scan.timer"]
+# The `clam*` glob finds everything, including Fedora's clamd@scan.service.
+# Set this only to restrict, or to add a unit named outside the convention.
+# watch = ["clamav-daemon.service", "clamav-freshclam.service"]
 
 [units.labels]
-# "clamav-scan-downloads.service" = "Monitor de Downloads"
+# "clamav-scan-downloads.service" = "Downloads Monitor"

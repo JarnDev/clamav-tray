@@ -31,8 +31,10 @@ for _lib, _ver in (("AyatanaAppIndicator3", "0.1"), ("AppIndicator3", "0.1")):
     except (ValueError, ImportError, KeyError):
         continue
 
-from . import actions, history, scan, units, widgets  # noqa: E402
+from . import actions, config as config_mod, history, scan, text, units, widgets  # noqa: E402
 from .config import Config  # noqa: E402
+from . import i18n  # noqa: E402
+from .i18n import _  # noqa: E402
 from .scan import Verdict  # noqa: E402
 
 ICONS = {
@@ -70,6 +72,10 @@ class Tray:
     # ---------------------------------------------------------------- estado
 
     def _refresh(self) -> bool:
+        if config_mod.changed_on_disk(self.cfg):
+            self.cfg = config_mod.load()
+            i18n.set_language(self.cfg.language)
+            self.unit_ids = self.cfg.units or units.discover()
         state = units.query(self.unit_ids)
         running = [u for u in state.values() if u.is_running_job]
         result = scan.parse_summary(
@@ -105,14 +111,14 @@ class Tray:
     def _headline(self, running, broken, result) -> tuple[str, str]:
         if result.is_alarming:
             n = result.infected
-            return ("Ameaça detectada", f"{n} arquivo(s) em quarentena")
+            return (_("Threat detected"), _("{n} file(s) quarantined", n=n))
         if running:
-            return ("Varredura em andamento", "")
+            return (_("Scanning"), "")
         if broken:
             nomes = ", ".join(self.cfg.label_for(u.id) for u in broken[:2])
-            resto = f" e mais {len(broken) - 2}" if len(broken) > 2 else ""
-            return ("Atenção", f"{nomes}{resto} com problema")
-        return ("Protegido", "todos os serviços no ar")
+            resto = " " + _("and {n} more", n=len(broken) - 2) if len(broken) > 2 else ""
+            return (_("Attention"), _("{names} not healthy", names=f"{nomes}{resto}"))
+        return (_("Protected"), _("all services running"))
 
     # ------------------------------------------------------------------ menu
 
@@ -125,7 +131,7 @@ class Tray:
         menu.append(widgets.separator())
 
         # --- varredura ---------------------------------------------------
-        menu.append(widgets.section("Varredura"))
+        menu.append(widgets.section(_("Scan")))
 
         if running:
             job = running[0]
@@ -133,29 +139,29 @@ class Tray:
             total = self._last_duration or _FALLBACK_SCAN_SECS
             menu.append(
                 widgets.progress_row(
-                    "Em andamento",
+                    _("In progress"),
                     min(elapsed / total, 0.99) if total else None,
-                    f"há {scan.human_duration(elapsed)}"
-                    + (f" · estimativa {scan.human_duration(total)}" if self._last_duration else ""),
+                    _("for {duration}", duration=scan.human_duration(elapsed))
+                    + (" · " + _("estimate {duration}", duration=scan.human_duration(total)) if self._last_duration else ""),
                 )
             )
         else:
             menu.append(
                 widgets.status_row(
-                    "Última",
+                    _("Last"),
                     self._when_last(state),
                     widgets.RED if result.is_alarming else (
                         widgets.DIM if result.verdict is Verdict.UNKNOWN else widgets.GREEN
                     ),
-                    scan.describe(result),
+                    text.describe(result),
                 )
             )
 
         if nxt := self._next_scan(state):
-            menu.append(widgets.status_row("Próxima", nxt, widgets.DIM))
+            menu.append(widgets.status_row(_("Next"), nxt, widgets.DIM))
 
         # --- servicos ----------------------------------------------------
-        menu.append(widgets.section("Serviços"))
+        menu.append(widgets.section(_("Services")))
         for unit in sorted(state.values(), key=lambda u: (u.kind.value, u.id)):
             if unit.kind is units.Kind.TIMER:
                 continue
@@ -172,22 +178,23 @@ class Tray:
         if not history.journal_readable() and self.cfg.scan_log is None:
             menu.append(
                 widgets.status_row(
-                    "Histórico", "indisponível", widgets.DIM,
-                    "sem acesso ao journal (grupo adm ou systemd-journal)",
+                    _("History"), _("unavailable"), widgets.DIM,
+                    _("no journal access (group adm or systemd-journal)"),
                 )
             )
 
         # --- acoes -------------------------------------------------------
         menu.append(widgets.separator())
         menu.append(
-            widgets.action("Varrer minha home agora", "media-playback-start-symbolic", self._on_scan)
+            widgets.action(_("Scan my home now"), "media-playback-start-symbolic", self._on_scan)
         )
         if self.cfg.quarantine:
-            menu.append(widgets.action("Abrir quarentena", "folder-symbolic", self._on_quarantine))
+            menu.append(widgets.action(_("Open quarantine"), "folder-symbolic", self._on_quarantine))
         if self.cfg.scan_log or self.cfg.log_file:
-            menu.append(widgets.action("Ver logs", "text-x-generic-symbolic", self._on_logs))
+            menu.append(widgets.action(_("View logs"), "text-x-generic-symbolic", self._on_logs))
+        menu.append(widgets.action(_("Settings"), "preferences-system-symbolic", self._on_settings))
         menu.append(widgets.separator())
-        menu.append(widgets.action("Sair", "application-exit-symbolic", lambda _: Gtk.main_quit()))
+        menu.append(widgets.action(_("Quit"), "application-exit-symbolic", lambda *_a: Gtk.main_quit()))
 
         menu.show_all()
         return menu
@@ -197,40 +204,34 @@ class Tray:
     def _when_last(self, state) -> str:
         for unit in state.values():
             if unit.kind is units.Kind.JOB and unit.finished_at:
-                return _relative(unit.finished_at)
+                return text.relative_time(unit.finished_at)
         return "—"
 
     def _next_scan(self, state) -> str | None:
         for unit in state.values():
             if unit.kind is units.Kind.TIMER and unit.next_elapse:
-                return _relative(unit.next_elapse)
+                return text.relative_time(unit.next_elapse)
         return None
 
     # --------------------------------------------------------------- acoes
 
-    def _on_scan(self, _):
+    def _on_scan(self, *_a):
         cmd = actions.scan_command(Path.home(), self.cfg.socket, self.cfg.quarantine)
         actions.run_in_terminal(cmd, self.cfg.terminal)
 
-    def _on_quarantine(self, _):
+    def _on_quarantine(self, *_a):
         actions.open_path(self.cfg.quarantine)
 
-    def _on_logs(self, _):
+    def _on_settings(self, *_a):
+        """Abre o arquivo de config, criando um modelo comentado se nao existir.
+
+        Nao ha dialogo de preferencias em GTK aqui de proposito: seria mais codigo
+        que o resto do programa junto, e a edicao e rara. O arquivo e recarregado
+        sozinho ao salvar, entao o efeito e o mesmo sem a superficie.
+        """
+        actions.open_path(config_mod.ensure_file())
+
+    def _on_logs(self, *_a):
         actions.run_in_terminal(
             f"less {self.cfg.scan_log or self.cfg.log_file}", self.cfg.terminal
         )
-
-
-def _relative(when: datetime) -> str:
-    """'hoje 07:42' / 'amanhã 03:01' / '23/09 03:00'.
-
-    Data absoluta so quando "hoje/ontem/amanha" nao resolve — quem olha a bandeja
-    quer saber se ja rodou hoje, nao a data.
-    """
-    local = when.astimezone()
-    today = datetime.now(timezone.utc).astimezone().date()
-    delta = (local.date() - today).days
-    prefixo = {0: "hoje", -1: "ontem", 1: "amanhã"}.get(delta)
-    if prefixo:
-        return f"{prefixo} {local:%H:%M}"
-    return f"{local:%d/%m %H:%M}"

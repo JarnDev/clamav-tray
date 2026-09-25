@@ -50,6 +50,10 @@ class Config:
     labels: dict[str, str] = field(default_factory=dict)
     refresh_secs: int = 10
     terminal: str | None = None
+    language: str = "en"
+    """Ingles e o padrao. "auto" segue o ambiente; "pt_BR" forca o portugues."""
+    loaded_from_mtime: float | None = None
+    """Para o tray perceber que o arquivo mudou e recarregar sozinho."""
 
     def label_for(self, unit_id: str) -> str:
         if unit_id in self.labels:
@@ -103,6 +107,10 @@ def load() -> Config:
         except (OSError, tomllib.TOMLDecodeError):
             data = {}
         _apply_overrides(cfg, data)
+        try:
+            cfg.loaded_from_mtime = CONFIG_PATH.stat().st_mtime
+        except OSError:
+            pass
 
     return cfg
 
@@ -113,6 +121,8 @@ def _apply_overrides(cfg: Config, data: dict) -> None:
         cfg.refresh_secs = int(v)
     if v := general.get("terminal"):
         cfg.terminal = str(v)
+    if v := general.get("language"):
+        cfg.language = str(v)
 
     paths = data.get("paths", {})
     for key, attr in (
@@ -152,3 +162,52 @@ def _guess_scan_log(daemon_log: Path | None) -> Path | None:
         if candidate.is_file():
             return candidate
     return None
+
+
+TEMPLATE = """\
+# clamav-tray — all settings are optional.
+# Without this file the program discovers units via the `clam*` glob and paths
+# via `clamconf`. Changes are picked up automatically, no restart needed.
+
+[general]
+# "en" (default), "pt_BR", or "auto" to follow the system locale.
+language = "en"
+refresh_secs = 10
+# terminal = "kitty"     # default: autodetect
+
+[paths]
+# clamconf knows the DAEMON socket and log. It does NOT know where your scan
+# writes — that depends on how you scheduled it. If the menu says "no result
+# recorded", this is the missing field.
+# scan_log   = "/var/log/clamav/scan.log"
+# quarantine = "/var/quarantine/clamav"
+
+[units]
+# The `clam*` glob finds everything, including Fedora's clamd@scan.service.
+# Set this only to restrict, or to add a unit named outside the convention.
+# watch = ["clamav-daemon.service", "clamav-freshclam.service"]
+
+[units.labels]
+# "clamav-scan-downloads.service" = "Downloads Monitor"
+"""
+
+
+def ensure_file() -> Path:
+    """Garante que o arquivo exista, para o item Settings ter o que abrir.
+
+    Escrever um modelo COMENTADO em vez de despejar a configuracao efetiva e
+    deliberado: o usuario precisa ver quais chaves existem, nao um retrato dos
+    valores que o programa descobriu sozinho — esses mudam de maquina para
+    maquina e copiá-los engessaria a deteccao automatica.
+    """
+    if not CONFIG_PATH.exists():
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG_PATH.write_text(TEMPLATE, encoding="utf-8")
+    return CONFIG_PATH
+
+
+def changed_on_disk(cfg: Config) -> bool:
+    try:
+        return CONFIG_PATH.stat().st_mtime != cfg.loaded_from_mtime
+    except OSError:
+        return cfg.loaded_from_mtime is not None

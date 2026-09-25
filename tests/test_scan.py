@@ -6,7 +6,9 @@ esta, e nao texto inventado: o valor do teste esta em ele ter vindo de uma
 maquina de verdade.
 """
 
-from clamav_tray.scan import Verdict, describe, human_duration, parse_summary
+from clamav_tray.i18n import set_language
+from clamav_tray.scan import Verdict, human_duration, parse_summary
+from clamav_tray.text import describe
 
 # Saida real de uma varredura de 4h33 em 1.099.137 arquivos. Os seis erros sao
 # arquivos que sumiram durante a varredura (IndexedDB do Slack, backup rotativo)
@@ -76,13 +78,37 @@ def test_duracao_lida_do_resumo():
 
 
 def test_descricao_menciona_ilegiveis_sem_alarmar():
+    """Em ingles, que e o idioma padrao e a FONTE das strings."""
+    set_language("en")
     texto = describe(parse_summary(REAL_CLEAN_WITH_ERRORS))
-    assert "limpa" in texto
-    assert "6 arquivos ilegiveis" in texto
+    assert "clean" in texto
+    assert "6 unreadable files" in texto
 
 
 def test_descricao_de_ameaca():
-    assert "1 ameaca encontrada" in describe(parse_summary(REAL_INFECTED))
+    set_language("en")
+    assert "1 threat found" in describe(parse_summary(REAL_INFECTED))
+
+
+def test_traducao_pt_br():
+    """Chave traduzida sai em portugues; o resto continua funcionando."""
+    set_language("pt_BR")
+    try:
+        texto = describe(parse_summary(REAL_CLEAN_WITH_ERRORS))
+        assert "limpa" in texto
+        assert "6 arquivos ilegiveis" in texto or "6 arquivos ileg" in texto
+    finally:
+        set_language("en")
+
+
+def test_chave_sem_traducao_cai_no_ingles():
+    """Traducao e opcional por construcao: chave ausente nao pode quebrar."""
+    from clamav_tray.i18n import _
+    set_language("pt_BR")
+    try:
+        assert _("this key does not exist") == "this key does not exist"
+    finally:
+        set_language("en")
 
 
 def test_duracao_usa_a_unidade_mais_grossa_que_informa():

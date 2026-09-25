@@ -75,9 +75,31 @@ pipx install clamav-tray     # ainda não publicado — por ora, ver DEVELOPMENT
 | Ubuntu | funciona (a Canonical embarca `ubuntu-appindicators`) |
 | GNOME puro | **precisa de extensão** — o GNOME removeu a bandeja na 3.26 |
 
+## Idioma
+
+**Inglês é o padrão.** As strings no código são as inglesas, e traduzir é opcional
+por construção: uma chave sem tradução aparece em inglês em vez de quebrar.
+
+```toml
+[general]
+language = "pt_BR"   # ou "auto" para seguir o locale do sistema
+```
+
+Traduções vivem em `clamav_tray/i18n.py`, num dicionário. Não usa gettext de propósito:
+compilar `.po` em `.mo` acrescentaria um passo de build a um projeto que hoje instala com
+`pipx install` e nada mais. Para contribuir com um idioma, copie o bloco `pt_BR` e traduza —
+sem instalar ferramenta nenhuma. As chaves já são as frases em inglês, então migrar para
+gettext depois é mecânico.
+
 ## Configuração
 
-Nenhuma é obrigatória. O programa descobre sozinho:
+Há um item **Settings** no menu: ele cria o arquivo comentado se não existir e abre no seu
+editor. O arquivo é **relido sozinho ao salvar** — sem reiniciar.
+
+Não há diálogo de preferências em GTK de propósito: seria mais código que o resto do programa
+junto, para uma edição que acontece raramente.
+
+Nenhuma configuração é obrigatória. O programa descobre sozinho:
 
 - **unidades** — pelo glob `clam*` no systemd, o que cobre tanto `clamav-daemon.service`
   (Debian, Ubuntu, Arch) quanto `clamd@scan.service` (Fedora, que usa unidade *templated*)

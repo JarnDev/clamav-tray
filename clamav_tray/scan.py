@@ -78,25 +78,6 @@ def parse_summary(text: str) -> ScanResult:
     )
 
 
-def describe(result: ScanResult) -> str:
-    """Uma linha para o menu. Sem emoji: quem decide o icone e o tray."""
-    if result.verdict is Verdict.UNKNOWN:
-        return "sem resultado registrado"
-    if result.verdict is Verdict.ERROR:
-        return "a varredura nao concluiu"
-    if result.verdict is Verdict.INFECTED:
-        n = result.infected
-        return f"{n} ameaca{'s' if n != 1 else ''} encontrada{'s' if n != 1 else ''}"
-
-    out = "limpa"
-    if result.duration_secs is not None:
-        out += f" ({human_duration(result.duration_secs)})"
-    if result.unreadable:
-        n = result.unreadable
-        out += f", {n} arquivo{'s' if n != 1 else ''} ilegive{'is' if n != 1 else 'l'}"
-    return out
-
-
 def human_duration(secs: int) -> str:
     """4h33 / 12m / 45s — sempre a unidade mais grossa que ainda informa."""
     if secs < 60:
