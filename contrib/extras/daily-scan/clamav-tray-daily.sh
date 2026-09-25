@@ -50,7 +50,8 @@ T0=$SECONDS
 # arquivo que contenha \n vira dois caminhos inexistentes. Medido: um PDF com
 # quebra de linha no nome gerava 2 erros por execucao.
 find "$SCAN_DIR" \
-    \( -path "${SCAN_DIR}/.cache" \
+    \( -path "${SCAN_DIR}/.local/share/clamav-tray/quarantine" \
+    -o -path "${SCAN_DIR}/.cache" \
     -o -path "${SCAN_DIR}/.local/share/Trash" \
     -o -path "${SCAN_DIR}/.local/share/Steam" \
     -o -path "${SCAN_DIR}/.local/share/lutris" \

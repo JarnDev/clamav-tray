@@ -203,9 +203,17 @@ por engano e vai para um diretório que nenhum programa varre, indexa ou gera mi
 
 A quarentena do **sistema** continua sendo da varredura agendada, que roda como root.
 
-**Limitação conhecida:** varrendo a home inteira, a quarentena do usuário está dentro do alvo.
-Arquivos já isolados são varridos de novo a cada execução. Não incomoda enquanto ela está vazia,
-que é o caso normal.
+A quarentena do usuário é **excluída** de toda varredura da home — a dela e a do extra
+`daily-scan`. Sem isso, o que já foi isolado seria reencontrado e movido de novo: a contagem no
+menu esvaziaria sozinha durante a noite, com os arquivos reaparecendo na quarentena de root.
+
+**Colisão de nome não sobrescreve.** O `clamdscan --move` acrescenta `.001`, `.002` — verificado
+com o arquivo de teste EICAR: dois arquivos de mesmo nome viraram `teste.txt` e `teste.txt.001`.
+
+**Dois vigias não brigam pelo mesmo arquivo.** Cada um tem quarentena própria. Se algo infectado
+for copiado de um pendrive para Downloads, são dois arquivos, cada um na sua quarentena — o menu
+refletir isso é correto, não duplicação. Numa corrida real pelo mesmo caminho, quem mover primeiro
+ganha e o segundo registra `Can't access file`, que conta como ilegível e **não** como infecção.
 
 Varredura lançada **fora** do programa — terminal, cron, outra ferramenta — também acende "em
 andamento", detectada por processo. Dessas não dá para ler o resultado, mas é melhor que afirmar

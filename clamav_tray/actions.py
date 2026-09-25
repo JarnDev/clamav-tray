@@ -126,6 +126,11 @@ def stop_scan() -> bool:
 # desprezivel — binario de jogo assinado pela loja, cache de navegador, pacote
 # gerenciado. O que NAO sai e onde o risco mora: Downloads, Documentos, codigo.
 DEFAULT_EXCLUDES = [
+    # A PROPRIA quarentena, antes de tudo: ela fica dentro da home, e sem esta
+    # linha a varredura reencontraria o que ja foi isolado e moveria de novo —
+    # para dentro de si mesma, ou para a quarentena de root se a varredura for
+    # dela. A contagem do menu esvaziaria sozinha, sem explicacao.
+    ".local/share/clamav-tray/quarantine",
     ".cache", ".local/share/Trash", ".local/share/Steam", ".local/share/lutris",
     ".local/share/pnpm", ".local/share/virtualenvs", ".local/share/pipx",
     ".config/google-chrome", ".mozilla/firefox",
