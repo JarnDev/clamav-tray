@@ -32,7 +32,7 @@ for _lib, _ver in (("AyatanaAppIndicator3", "0.1"), ("AppIndicator3", "0.1")):
     except (ValueError, ImportError, KeyError):
         continue
 
-from . import (actions, config as config_mod, history, progress,  # noqa: E402
+from . import (actions, config as config_mod, devices, history, progress,  # noqa: E402
                quarantine, scan, text, units, widgets)
 from .config import Config  # noqa: E402
 from . import i18n  # noqa: E402
@@ -47,6 +47,7 @@ ICONS = {
     "busy": "system-search-symbolic",     # lupa: procurando
     "warn": "security-medium-symbolic",   # escudo parcial: servico caido
     "threat": "security-low-symbolic",    # escudo rompido: ameaca
+    "media": "media-removable-symbolic",  # pendrive plugado e nao varrido
 }
 
 # Duracao tipica de uma varredura completa, so para dar forma a barra quando ha
@@ -68,6 +69,11 @@ class Tray:
         # linhas de 10 em 10 segundos custaria mais que a propria varredura.
         self._counter = progress.LineCounter(progress.output_path())
         self._list_total: int | None = None
+        # Quais midias ja foram varridas NESTA sessao. Em memoria de proposito:
+        # reiniciar o tray e oferecer varredura de novo e inofensivo; guardar em
+        # disco exigiria decidir quando invalidar, e o custo nao se paga.
+        self._scanned: set[str] = set()
+        self._scan_target: Path | None = None
         self.indicator = _INDICATOR.Indicator.new(
             "clamav-tray", ICONS["ok"], _INDICATOR.IndicatorCategory.SYSTEM_SERVICES
         )
@@ -104,6 +110,8 @@ class Tray:
 
         # Precedencia: ameaca > varrendo > servico caido > ok. Uma infeccao nunca
         # pode ser escondida por uma varredura em andamento.
+        media = devices.list_removable()
+        pending = [d for d in media if d.key not in self._scanned]
         broken = [u for u in state.values() if not u.is_healthy]
         if result.is_alarming:
             key, mark = "threat", widgets.BAD
@@ -111,13 +119,17 @@ class Tray:
             key, mark = "busy", widgets.BUSY
         elif broken:
             key, mark = "warn", widgets.WARN
+        elif pending:
+            # Midia plugada e nao varrida e um estado proprio: nao e falha, mas
+            # tambem nao e "tudo em ordem" — ha algo esperando decisao sua.
+            key, mark = "media", widgets.MEDIA
         else:
             key, mark = "ok", widgets.OK
 
         self.indicator.set_icon_full(ICONS[key], "ClamAV")
-        self.indicator.set_label(self._indicator_label(running, loose_scan, result), "")
+        self.indicator.set_label(self._indicator_label(running, loose_scan, result, pending), "")
         self.indicator.set_menu(
-            self._build_menu(state, running, broken, result, mark, loose_scan)
+            self._build_menu(state, running, broken, result, mark, loose_scan, media)
         )
         return True  # mantem o timer vivo
 
@@ -203,7 +215,7 @@ class Tray:
             return pr.fraction, f"{base} · {pr.done:,}/{pr.total:,}".replace(",", ".")
         return None, base
 
-    def _indicator_label(self, running, loose_scan, result) -> str:
+    def _indicator_label(self, running, loose_scan, result, pending=()) -> str:
         """Texto ao lado do icone na barra. Vazio em repouso — indicador que fala o
         tempo todo vira ruido; o que fala so quando ha o que dizer, e lido."""
         if result.is_alarming:
@@ -215,6 +227,8 @@ class Tray:
             return scan.human_duration(secs)
         if running or loose_scan:
             return "…"
+        if pending:
+            return f"⚠ {len(pending)}" if len(pending) > 1 else "⚠"
         return ""
 
     def _headline(self, running, broken, result, loose=False) -> tuple[str, str]:
@@ -231,7 +245,8 @@ class Tray:
 
     # ------------------------------------------------------------------ menu
 
-    def _build_menu(self, state, running, broken, result, mark, loose_scan=False) -> Gtk.Menu:
+    def _build_menu(self, state, running, broken, result, mark,
+                    loose_scan=False, media=None) -> Gtk.Menu:
         """Quatro blocos separados por linha, sem rotulo de secao.
 
         Rotulo de secao custa uma linha para dizer o que o agrupamento ja diz. Num
@@ -284,6 +299,10 @@ class Tray:
                 else:
                     menu.append(self._service_row(unit))
 
+        # --- 2b. midia removivel ------------------------------------------
+        for row in self._device_rows(media or [], bool(running or loose_scan)):
+            menu.append(row)
+
         # --- 3. quarentena, uma subsecao por dono -------------------------
         for row in self._quarantine_rows():
             menu.append(row)
@@ -332,6 +351,33 @@ class Tray:
         rows.append(widgets.line(text.describe(result).capitalize()))
         if nxt := self._next_scan(state):
             rows.append(widgets.line(_("Next {when}", when=nxt)))
+        return rows
+
+    def _device_rows(self, media: list, busy: bool) -> list:
+        """Midia removivel: mostra e espera decisao, nao varre sozinho.
+
+        Varrer automaticamente ao plugar exige udev, unidade de sistema e root —
+        e age sem perguntar. Aqui o dispositivo aparece e a varredura so comeca se
+        voce clicar. Quem quiser o automatico instala contrib/extras/usb-scan.
+        """
+        if not media:
+            return []
+        rows = [widgets.separator(), widgets.section(_("Devices"))]
+        for dev in media:
+            done = dev.key in self._scanned
+            size = devices.human_size(dev.size_bytes)
+            desc = " · ".join(x for x in (size, _("scanned") if done else _("not scanned")) if x)
+            if busy:
+                # Uma varredura de cada vez: a barra e o botao de parar sao
+                # unicos, e duas em paralelo tornariam ambos ambiguos.
+                row = widgets.status_row(dev.label, desc,
+                                         widgets.OK if done else widgets.MEDIA)
+            else:
+                row = widgets.status_action(
+                    dev.label, desc, widgets.OK if done else widgets.MEDIA,
+                    lambda _w, d=dev: self._on_scan_device(d))
+            rows.append(row)
+            rows.append(widgets.line(str(dev.mountpoint)))
         return rows
 
     def _quarantine_rows(self) -> list:
@@ -403,8 +449,20 @@ class Tray:
         # acumulam e o clamdscan nao as remove sozinho.
         config_mod.clean_stale_locks(dest)
         actions.start_scan(Path.home(), self.cfg.socket, dest)
+        self._scan_target = Path.home()
         # A lista acabou de ser escrita; guardar o total e o que da escala a barra.
         self._list_total = progress.count_lines(progress.list_path()) or None
+
+    def _on_scan_device(self, dev):
+        dest = config_mod.ensure_user_quarantine(self.cfg.user_quarantine) \
+            if self.cfg.user_quarantine else None
+        config_mod.clean_stale_locks(dest)
+        # excludes=[] : as regras da home (cache, node_modules) nao existem numa
+        # midia removivel e so gastariam tempo do find.
+        if actions.start_scan(dev.mountpoint, self.cfg.socket, dest, excludes=[]):
+            self._scanned.add(dev.key)
+            self._scan_target = dev.mountpoint
+            self._list_total = progress.count_lines(progress.list_path()) or None
 
     def _on_stop(self, *_a):
         actions.stop_scan()

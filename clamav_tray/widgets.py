@@ -44,6 +44,7 @@ WARN = "🟠"
 BAD = "🔴"
 BUSY = "🔵"
 IDLE = "⚪"
+MEDIA = "🟡"   # midia plugada esperando decisao: nem falha, nem tudo em ordem
 
 
 def header(title: str, subtitle: str, mark: str) -> Gtk.MenuItem:

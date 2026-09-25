@@ -176,7 +176,12 @@ def build_file_list(target: Path, dest: Path, excludes: list[str] | None = None)
     return len(kept)
 
 
-def start_scan(target: Path, socket: Path | None, quarantine: Path | None) -> bool:
+def start_scan(
+    target: Path,
+    socket: Path | None,
+    quarantine: Path | None,
+    excludes: list[str] | None = None,
+) -> bool:
     """Lanca a varredura como UNIDADE TRANSITORIA do usuario.
 
     Por que nao um comando solto num terminal, como era antes: o indicador observa
@@ -193,7 +198,10 @@ def start_scan(target: Path, socket: Path | None, quarantine: Path | None) -> bo
     from . import progress
     listing = progress.list_path()
     out = progress.output_path()
-    total = build_file_list(target, listing)
+    # Midia removivel nao tem o que excluir: ali nao ha cache de navegador nem
+    # node_modules. Passar `excludes=[]` evita aplicar as regras da home num
+    # pendrive, onde elas so gastariam tempo.
+    total = build_file_list(target, listing, excludes)
     if total:
         argv = scan_argv(None, socket, quarantine, file_list=listing)
     else:
