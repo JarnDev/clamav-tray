@@ -72,10 +72,11 @@ class Tray:
         # Quais midias ja foram varridas NESTA sessao. Em memoria de proposito:
         # reiniciar o tray e oferecer varredura de novo e inofensivo; guardar em
         # disco exigiria decidir quando invalidar, e o custo nao se paga.
-        # chave da midia -> quando foi varrida. Dict e nao set: "varrido" sem
-        # dizer quando e quase inutil — um pendrive varrido semana passada nao
-        # informa nada sobre o que ha nele agora.
-        self._scanned: dict[str, object] = {}
+        # chave da midia -> (quando, quantas ameacas). Guardar so o "quando" fazia
+        # duas midias ficarem indistinguiveis no menu: uma limpa e outra com
+        # ameaca apareciam igualmente como "varrido", e o resultado so existia na
+        # linha compartilhada de USUARIO, que e a mesma para as duas.
+        self._scanned: dict[str, tuple] = {}
         self._scan_target: Path | None = None
         # Chave da midia sendo varrida AGORA. So entra em _scanned quando a
         # varredura termina: marcar no clique dizia "varrido" com 57% na tela, e
@@ -117,13 +118,15 @@ class Tray:
         if result.duration_secs:
             self._last_duration = result.duration_secs
 
+        # (result ja foi calculado acima e traz a contagem de infectados)
         # A varredura de midia so conta como feita quando a unidade TERMINA bem.
         # Marcar no clique fazia o dispositivo aparecer "varrido" com a barra em
         # 57% — e continuaria assim se a varredura fosse cancelada.
         if self._scanning_key and job and not job.is_running_job:
             # Achou virus tambem conta como varrido: a midia FOI conferida.
             if job.result in ("success", "unknown") or job.found_threats:
-                self._scanned[self._scanning_key] = job.finished_at or _now()
+                self._scanned[self._scanning_key] = (
+                    job.finished_at or _now(), result.infected)
             self._scanning_key = None
 
         media = devices.list_removable()
@@ -424,20 +427,27 @@ class Tray:
         titulo = _("Devices") if busy else f'{_("Devices")} · {_("click to scan")}'
         rows = [widgets.separator(), widgets.section(titulo)]
         for dev in media:
-            when = self._scanned.get(dev.key)
+            registro = self._scanned.get(dev.key)
             size = devices.human_size(dev.size_bytes)
-            estado = (_("scanned {when}", when=text.relative_time(when)) if when
-                      else _("not scanned"))
+            if registro is None:
+                estado, mark = _("not scanned"), widgets.MEDIA
+            else:
+                when, infectados = registro
+                quando = text.relative_time(when)
+                if infectados:
+                    estado = _("{n} threat {when}" if infectados == 1
+                               else "{n} threats {when}", n=infectados, when=quando)
+                    mark = widgets.BAD
+                else:
+                    estado, mark = _("clean {when}", when=quando), widgets.OK
             desc = " · ".join(x for x in (size, estado) if x)
-            done = when is not None
             if busy:
                 # Uma varredura de cada vez: a barra e o botao de parar sao
                 # unicos, e duas em paralelo tornariam ambos ambiguos.
-                row = widgets.status_row(dev.label, desc,
-                                         widgets.OK if done else widgets.MEDIA)
+                row = widgets.status_row(dev.label, desc, mark)
             else:
                 row = widgets.status_action(
-                    dev.label, desc, widgets.OK if done else widgets.MEDIA,
+                    dev.label, desc, mark,
                     lambda _w, d=dev: self._on_scan_device(d))
             rows.append(row)
             rows.append(widgets.line(str(dev.mountpoint)))
