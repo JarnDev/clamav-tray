@@ -72,8 +72,15 @@ class Tray:
         # Quais midias ja foram varridas NESTA sessao. Em memoria de proposito:
         # reiniciar o tray e oferecer varredura de novo e inofensivo; guardar em
         # disco exigiria decidir quando invalidar, e o custo nao se paga.
-        self._scanned: set[str] = set()
+        # chave da midia -> quando foi varrida. Dict e nao set: "varrido" sem
+        # dizer quando e quase inutil — um pendrive varrido semana passada nao
+        # informa nada sobre o que ha nele agora.
+        self._scanned: dict[str, object] = {}
         self._scan_target: Path | None = None
+        # Chave da midia sendo varrida AGORA. So entra em _scanned quando a
+        # varredura termina: marcar no clique dizia "varrido" com 57% na tela, e
+        # continuaria dizendo se voce cancelasse.
+        self._scanning_key: str | None = None
         self.indicator = _INDICATOR.Indicator.new(
             "clamav-tray", ICONS["ok"], _INDICATOR.IndicatorCategory.SYSTEM_SERVICES
         )
@@ -108,11 +115,20 @@ class Tray:
         if result.duration_secs:
             self._last_duration = result.duration_secs
 
-        # Precedencia: ameaca > varrendo > servico caido > ok. Uma infeccao nunca
-        # pode ser escondida por uma varredura em andamento.
+        # A varredura de midia so conta como feita quando a unidade TERMINA bem.
+        # Marcar no clique fazia o dispositivo aparecer "varrido" com a barra em
+        # 57% — e continuaria assim se a varredura fosse cancelada.
+        if self._scanning_key and job and not job.is_running_job:
+            if job.result in ("success", "unknown"):
+                self._scanned[self._scanning_key] = job.finished_at or _now()
+            self._scanning_key = None
+
         media = devices.list_removable()
         pending = [d for d in media if d.key not in self._scanned]
         broken = [u for u in state.values() if not u.is_healthy]
+
+        # Precedencia: ameaca > varrendo > servico caido > midia pendente > ok.
+        # Uma infeccao nunca pode ser escondida por uma varredura em andamento.
         if result.is_alarming:
             key, mark = "threat", widgets.BAD
         elif running or loose_scan:
@@ -163,7 +179,8 @@ class Tray:
         ))
 
         if ours:
-            rows.append(widgets.card_line(_("Target"), str(Path.home())))
+            rows.append(widgets.card_line(
+                _("Target"), _shorten(self._scan_target or Path.home())))
             if self.cfg.user_quarantine:
                 rows.append(widgets.card_line(
                     _("Moves to"), str(self.cfg.user_quarantine)))
@@ -287,6 +304,10 @@ class Tray:
                 if unit.kind is units.Kind.JOB:
                     # Tarefa encerrada nao e servico: ponto verde ali diria "no ar"
                     # sobre algo que ja terminou. Mostra o desfecho, nao a saude.
+                    if unit.is_running_job:
+                        menu.append(widgets.status_row(
+                            _("On-demand scan"), _("running"), widgets.BUSY))
+                        continue
                     ok = unit.result in ("success", "unknown")
                     when = (text.relative_time(unit.finished_at)
                             if unit.finished_at else "")
@@ -362,11 +383,18 @@ class Tray:
         """
         if not media:
             return []
-        rows = [widgets.separator(), widgets.section(_("Devices"))]
+        # A dica de clique vai no titulo da secao porque NAO HA TOOLTIP: o
+        # protocolo dbusmenu nao carrega o conceito (verificado — zero ocorrencias
+        # nas bibliotecas). Affordance, aqui, so cabe no texto.
+        titulo = _("Devices") if busy else f'{_("Devices")} · {_("click to scan")}'
+        rows = [widgets.separator(), widgets.section(titulo)]
         for dev in media:
-            done = dev.key in self._scanned
+            when = self._scanned.get(dev.key)
             size = devices.human_size(dev.size_bytes)
-            desc = " · ".join(x for x in (size, _("scanned") if done else _("not scanned")) if x)
+            estado = (_("scanned {when}", when=text.relative_time(when)) if when
+                      else _("not scanned"))
+            desc = " · ".join(x for x in (size, estado) if x)
+            done = when is not None
             if busy:
                 # Uma varredura de cada vez: a barra e o botao de parar sao
                 # unicos, e duas em paralelo tornariam ambos ambiguos.
@@ -460,7 +488,7 @@ class Tray:
         # excludes=[] : as regras da home (cache, node_modules) nao existem numa
         # midia removivel e so gastariam tempo do find.
         if actions.start_scan(dev.mountpoint, self.cfg.socket, dest, excludes=[]):
-            self._scanned.add(dev.key)
+            self._scanning_key = dev.key
             self._scan_target = dev.mountpoint
             self._list_total = progress.count_lines(progress.list_path()) or None
 
@@ -510,3 +538,8 @@ def _shorten(path) -> str:
     text_ = str(path)
     home = str(Path.home())
     return "~" + text_[len(home):] if text_.startswith(home) else text_
+
+
+def _now():
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc)

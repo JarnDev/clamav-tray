@@ -23,7 +23,7 @@ from enum import Enum
 
 PROPS = [
     "Id", "Type", "ActiveState", "SubState", "Result",
-    "ExecMainStartTimestamp", "InactiveEnterTimestamp",
+    "ExecMainStartTimestamp", "ExecMainExitTimestamp", "InactiveEnterTimestamp",
     "NextElapseUSecRealtime", "LastTriggerUSec",
 ]
 
@@ -188,7 +188,12 @@ def query(unit_ids: list[str], user: bool = False) -> dict[str, Unit]:
             sub_state=fields.get("SubState", "unknown"),
             result=fields.get("Result", "unknown"),
             started_at=_parse_ts(fields.get("ExecMainStartTimestamp", "")),
-            finished_at=_parse_ts(fields.get("InactiveEnterTimestamp", "")),
+            # ExecMainExit vem PRIMEIRO: com --remain-after-exit a unidade fica
+            # `active/exited` e NUNCA entra em inactive, entao
+            # InactiveEnterTimestamp permanece vazio. Ler so ele fazia o horario
+            # de termino sumir justamente nas varreduras sob demanda.
+            finished_at=(_parse_ts(fields.get("ExecMainExitTimestamp", ""))
+                         or _parse_ts(fields.get("InactiveEnterTimestamp", ""))),
             next_elapse=_parse_ts(fields.get("NextElapseUSecRealtime", "")),
         )
     return units
