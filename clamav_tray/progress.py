@@ -108,7 +108,18 @@ class LineCounter:
         self.path = path
         self._offset = 0
         self._lines = 0
+        self._found = 0
         self._inode: int | None = None
+
+    @property
+    def found(self) -> int:
+        """Quantos infectados ja apareceram nesta varredura.
+
+        Contado na MESMA passada das linhas: um `grep` sobre 70 MB a cada
+        atualizacao custaria caro, e a informacao ja esta passando pelos olhos do
+        contador.
+        """
+        return self._found
 
     def count(self) -> int:
         try:
@@ -129,6 +140,7 @@ class LineCounter:
                 fh.seek(self._offset)
                 while chunk := fh.read(1 << 20):
                     self._lines += chunk.count(b"\n")
+                    self._found += chunk.count(b" FOUND")
                 self._offset = fh.tell()
         except OSError:
             return self._lines
@@ -137,4 +149,5 @@ class LineCounter:
     def _reset(self) -> None:
         self._offset = 0
         self._lines = 0
+        self._found = 0
         self._inode = None

@@ -119,6 +119,62 @@ class Tray:
         )
         return True  # mantem o timer vivo
 
+    def _scan_card(self, elapsed: int, ours: bool) -> list:
+        """Bloco de informacoes da varredura em curso.
+
+        Uma linha por item, cada uma um Gtk.MenuItem proprio — e o unico arranjo
+        que renderiza de forma confiavel dentro de um menu do GTK 3.
+        """
+        rows = [widgets.status_row(_("In progress"), "", widgets.BUSY)]
+        pr = self._progress_data()
+        rows.append(widgets.progress_bar(pr.fraction if pr else None))
+
+        if pr:
+            rows.append(widgets.card_line(
+                _("Files"), f"{_thousands(pr.done)} / {_thousands(pr.total)}"))
+            remaining = max(pr.total - pr.done, 0)
+            rows.append(widgets.card_line(_("Remaining"), _thousands(remaining)))
+            if elapsed > 0 and pr.done > 0:
+                rows.append(widgets.card_line(
+                    _("Rate"), _("{n}/s", n=max(pr.done // elapsed, 1))))
+
+        rows.append(widgets.card_line(
+            _("Elapsed"), scan.human_duration(elapsed) if elapsed else "—"))
+
+        found = self._counter.found if ours else 0
+        rows.append(widgets.card_line(
+            _("Infected"),
+            _thousands(found) if found else _("none so far"),
+            widgets.BAD if found else "",
+        ))
+
+        if ours:
+            rows.append(widgets.card_line(_("Target"), str(Path.home())))
+            if self.cfg.user_quarantine:
+                rows.append(widgets.card_line(
+                    _("Moves to"), str(self.cfg.user_quarantine)))
+        else:
+            # Varredura de fora: sabemos que existe pelo processo, e so.
+            rows.append(widgets.card_line(_("Source"), _("started outside the tray")))
+        return rows
+
+    def _progress_data(self):
+        """Fracao/contagem da varredura, da fonte que responder."""
+        pr = progress.from_counter_file(
+            self.cfg.scan_log.parent if self.cfg.scan_log else None
+        )
+        if pr is not None:
+            return pr
+        if self._list_total is None:
+            # O tray pode ter reiniciado no meio de uma varredura; o total esta no
+            # proprio arquivo de lista.
+            self._list_total = progress.count_lines(progress.list_path()) or None
+        if self._list_total:
+            done = self._counter.count()
+            if done:
+                return progress.Progress(done=done, total=self._list_total)
+        return None
+
     def _progress(self, elapsed: int) -> tuple[float | None, str]:
         """Fracao e legenda da barra.
 
@@ -151,9 +207,9 @@ class Tray:
         if result.is_alarming:
             return f"⚠ {result.infected}"
         if running and (secs := running[0].elapsed_secs):
-            frac, _d = self._progress(secs)
-            if frac is not None:
-                return f"{int(frac * 100)}%"
+            pr = self._progress_data()
+            if pr and pr.fraction is not None:
+                return f"{pr.percent}%"
             return scan.human_duration(secs)
         if running or loose_scan:
             return "…"
@@ -187,8 +243,8 @@ class Tray:
         if running or loose_scan:
             job = running[0] if running else None
             elapsed = (job.elapsed_secs if job else None) or 0
-            frac, detail = self._progress(elapsed)
-            menu.append(widgets.progress_row(_("In progress"), frac, detail))
+            for row in self._scan_card(elapsed, bool(job)):
+                menu.append(row)
         else:
             menu.append(
                 widgets.status_row(
@@ -321,3 +377,8 @@ class Tray:
         actions.run_in_terminal(
             f"less {self.cfg.scan_log or self.cfg.log_file}", self.cfg.terminal
         )
+
+
+def _thousands(n: int) -> str:
+    """1131791 -> 1.131.791. Numero grande sem separador vira borrao."""
+    return f"{n:,}".replace(",", ".")

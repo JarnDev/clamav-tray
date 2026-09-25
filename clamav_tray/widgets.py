@@ -58,40 +58,39 @@ def status_row(label: str, value: str, mark: str, detail: str = "") -> Gtk.MenuI
     return _info_item(markup)
 
 
-def progress_row(label: str, fraction: float | None, detail: str) -> Gtk.MenuItem:
-    """Varredura em andamento, com barra de progresso.
+def progress_bar(fraction: float | None) -> Gtk.MenuItem:
+    """SO a barra, como filha DIRETA do item.
 
-    `fraction=None` vira barra pulsante: o clamdscan nao informa progresso, e
-    fingir uma porcentagem seria inventar. Pulsar diz "esta vivo" sem mentir
-    quanto falta.
+    Aprendido do jeito caro: `Gtk.Box` dentro de `Gtk.MenuItem` nao negocia largura
+    de forma confiavel — a versao anterior punha titulo, barra e detalhe numa caixa
+    e a linha inteira ficava invisivel no menu. Aqui o item tem um unico filho, e
+    os textos ao redor sao itens proprios.
     """
     item = Gtk.MenuItem()
     item.set_sensitive(False)
-    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-
-    top = Gtk.Label(xalign=0)
-    top.set_markup(f"{BUSY}  <b>{_esc(label)}</b>")
-    box.pack_start(top, False, False, 0)
-
     bar = Gtk.ProgressBar()
-    bar.set_size_request(240, -1)   # menu de bandeja e estreito; sem isto a barra some
+    bar.set_size_request(260, 14)
+    bar.set_margin_top(2)
+    bar.set_margin_bottom(2)
     if fraction is None:
-        # Sem fracao a barra PULSA. O clamdscan nao informa progresso quando se
-        # aponta um diretorio; fingir porcentagem seria inventar.
+        # Sem fracao a barra PULSA: o clamdscan nao informa progresso quando se
+        # aponta um diretorio, e fingir porcentagem seria inventar.
         bar.pulse()
     else:
         bar.set_fraction(max(0.0, min(1.0, fraction)))
         bar.set_show_text(True)
         bar.set_text(f"{int(fraction * 100)}%")
-    box.pack_start(bar, False, False, 0)
-
-    if detail:
-        sub = Gtk.Label(xalign=0)
-        sub.set_markup(f'<span foreground="{DIM}" size="small">{_esc(detail)}</span>')
-        box.pack_start(sub, False, False, 0)
-
-    item.add(box)
+    item.add(bar)
     return item
+
+
+def card_line(label: str, value: str, mark: str = "") -> Gtk.MenuItem:
+    """Linha de detalhe do card: recuada, sem ponto, valor em destaque."""
+    prefix = f"{mark}  " if mark else "     "
+    return _info_item(
+        f'{prefix}<span foreground="{DIM}" size="small">{_esc(label)}</span>'
+        f'  <b><span size="small">{_esc(value)}</span></b>'
+    )
 
 
 def section(title: str) -> Gtk.MenuItem:
