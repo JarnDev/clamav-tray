@@ -125,8 +125,12 @@ class Tray:
         if self._scanning_key and job and not job.is_running_job:
             # Achou virus tambem conta como varrido: a midia FOI conferida.
             if job.result in ("success", "unknown") or job.found_threats:
+                # found - moved = ameacas que NAO puderam ser isoladas. Midia
+                # somente leitura e o caso comum: o clamdscan acha, falha ao
+                # remover e ainda assim reporta "Infected files: N".
+                presas = max(result.infected - self._counter.moved, 0)
                 self._scanned[self._scanning_key] = (
-                    job.finished_at or _now(), result.infected)
+                    job.finished_at or _now(), result.infected, presas)
             self._scanning_key = None
 
         media = devices.list_removable()
@@ -178,11 +182,12 @@ class Tray:
             _("Elapsed"), scan.human_duration(elapsed) if elapsed else "—"))
 
         found = self._counter.found if ours else 0
-        rows.append(widgets.card_line(
-            _("Infected"),
-            _thousands(found) if found else _("none so far"),
-            widgets.BAD if found else "",
-        ))
+        presas = max(found - self._counter.moved, 0) if ours else 0
+        if presas:
+            valor = _("{n} · {p} not isolated", n=_thousands(found), p=_thousands(presas))
+        else:
+            valor = _thousands(found) if found else _("none so far")
+        rows.append(widgets.card_line(_("Infected"), valor, widgets.BAD if found else ""))
 
         if ours:
             rows.append(widgets.card_line(
@@ -432,9 +437,14 @@ class Tray:
             if registro is None:
                 estado, mark = _("not scanned"), widgets.MEDIA
             else:
-                when, infectados = registro
+                when, infectados, presas = registro
                 quando = text.relative_time(when)
-                if infectados:
+                if presas:
+                    estado = _("{n} threat NOT isolated {when}" if presas == 1
+                               else "{n} threats NOT isolated {when}",
+                               n=presas, when=quando)
+                    mark = widgets.BAD
+                elif infectados:
                     estado = _("{n} threat {when}" if infectados == 1
                                else "{n} threats {when}", n=infectados, when=quando)
                     mark = widgets.BAD

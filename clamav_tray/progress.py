@@ -109,7 +109,20 @@ class LineCounter:
         self._offset = 0
         self._lines = 0
         self._found = 0
+        self._moved = 0
         self._inode: int | None = None
+
+    @property
+    def moved(self) -> int:
+        """Quantos foram de fato ISOLADOS.
+
+        Existe porque encontrar e isolar sao coisas diferentes, e o resumo do
+        clamdscan so relata a primeira. Numa midia somente leitura — um pendrive
+        de instalacao, por exemplo — ele acha a ameaca, falha ao remove-la e
+        mesmo assim escreve "Infected files: 1". Sem comparar, o menu afirmaria
+        contencao que nao aconteceu.
+        """
+        return self._moved
 
     @property
     def found(self) -> int:
@@ -141,6 +154,7 @@ class LineCounter:
                 while chunk := fh.read(1 << 20):
                     self._lines += chunk.count(b"\n")
                     self._found += chunk.count(b" FOUND")
+                    self._moved += chunk.count(b"moved to '")
                 self._offset = fh.tell()
         except OSError:
             return self._lines
@@ -150,4 +164,5 @@ class LineCounter:
         self._offset = 0
         self._lines = 0
         self._found = 0
+        self._moved = 0
         self._inode = None
