@@ -47,6 +47,8 @@ CATALOGS: dict[str, dict[str, str]] = {
         "finished": "concluída",
         "running": "em andamento",
         "failed": "falhou",
+        "found threats {when}": "encontrou ameaças {when}",
+        "found threats": "encontrou ameaças",
         "Quarantine": "Quarentena",
         "unreadable": "ilegível",
         "Services": "Serviços",

@@ -121,7 +121,8 @@ class Tray:
         # Marcar no clique fazia o dispositivo aparecer "varrido" com a barra em
         # 57% — e continuaria assim se a varredura fosse cancelada.
         if self._scanning_key and job and not job.is_running_job:
-            if job.result in ("success", "unknown"):
+            # Achou virus tambem conta como varrido: a midia FOI conferida.
+            if job.result in ("success", "unknown") or job.found_threats:
                 self._scanned[self._scanning_key] = job.finished_at or _now()
             self._scanning_key = None
 
@@ -343,6 +344,12 @@ class Tray:
                 lambda *_a: self._on_stop())
         if job is None:
             estado, mark = _("never run"), widgets.IDLE
+        elif job.found_threats:
+            # Achar virus e o TRABALHO da varredura, nao falha dela. O clamdscan
+            # sai com 1 nesse caso, e o systemd marca a unidade como failed.
+            estado = (_("found threats {when}", when=text.relative_time(job.finished_at))
+                      if job.finished_at else _("found threats"))
+            mark = widgets.BAD
         elif job.result in ("success", "unknown"):
             estado = (_("finished {when}", when=text.relative_time(job.finished_at))
                       if job.finished_at else _("finished"))

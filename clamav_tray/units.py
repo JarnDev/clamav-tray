@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from enum import Enum
 
 PROPS = [
-    "Id", "Type", "ActiveState", "SubState", "Result",
+    "Id", "Type", "ActiveState", "SubState", "Result", "ExecMainStatus",
     "ExecMainStartTimestamp", "ExecMainExitTimestamp", "InactiveEnterTimestamp",
     "NextElapseUSecRealtime", "LastTriggerUSec",
 ]
@@ -49,6 +49,9 @@ class Unit:
     started_at: datetime | None = None
     finished_at: datetime | None = None
     next_elapse: datetime | None = None
+    exit_status: int | None = None
+    """Codigo de saida do processo. Importa porque o clamdscan usa 1 para
+    "encontrei virus" — resultado ESPERADO, nao falha — e 2 para erro real."""
     user_scope: bool = False
     """Unidade do barramento do usuario (`systemctl --user`). A varredura sob
     demanda vive la: `clamdscan --fdpass` nao precisa de root, porque quem abre os
@@ -73,9 +76,17 @@ class Unit:
             return self.active_state == "active"
         if self.kind is Kind.TIMER:
             return self.active_state == "active"
-        # Tarefa: falhou de verdade so quando o systemd diz que falhou. O veredito
-        # da varredura em si vem do SCAN SUMMARY, nao daqui — ver scan.py.
+        # Tarefa: encontrar virus NAO e falha da tarefa — e o trabalho dela. O
+        # clamdscan sai com 1 nesse caso e com 2+ em erro de verdade, mas o
+        # systemd so ve "codigo != 0" e marca failed.
+        if self.found_threats:
+            return True
         return self.active_state != "failed"
+
+    @property
+    def found_threats(self) -> bool:
+        """Saiu com 1: achou algo. E desfecho valido, nao falha."""
+        return self.exit_status == 1
 
     @property
     def elapsed_secs(self) -> int | None:
@@ -99,6 +110,13 @@ def _classify(unit_id: str, type_: str) -> Kind:
     # `oneshot` e a assinatura de "roda e termina". `simple`/`notify`/`forking`
     # descrevem processo que fica de pe.
     return Kind.JOB if type_ == "oneshot" else Kind.DAEMON
+
+
+def _int_or_none(value: str | None) -> int | None:
+    try:
+        return int(value) if value not in (None, "") else None
+    except ValueError:
+        return None
 
 
 def _parse_ts(value: str) -> datetime | None:
@@ -187,6 +205,7 @@ def query(unit_ids: list[str], user: bool = False) -> dict[str, Unit]:
             active_state=fields.get("ActiveState", "unknown"),
             sub_state=fields.get("SubState", "unknown"),
             result=fields.get("Result", "unknown"),
+            exit_status=_int_or_none(fields.get("ExecMainStatus")),
             started_at=_parse_ts(fields.get("ExecMainStartTimestamp", "")),
             # ExecMainExit vem PRIMEIRO: com --remain-after-exit a unidade fica
             # `active/exited` e NUNCA entra em inactive, entao
