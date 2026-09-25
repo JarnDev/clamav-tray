@@ -1,0 +1,17 @@
+[Unit]
+Description=ClamAV scan of removable media %I (clamav-tray extra)
+Documentation=https://github.com/JarnDev/clamav-tray
+After=clamav-daemon.service
+Wants=clamav-daemon.service
+
+[Service]
+Type=oneshot
+# %i e o nome de kernel da particao (sdc1), vindo do udev.
+ExecStart=/usr/local/bin/clamav-tray-usb.sh %i
+EnvironmentFile=/etc/default/clamav-tray-usb
+# A unidade PERMANECE depois de terminar para o indicador conseguir ler o
+# resultado. Sem isto ela some no instante em que acaba.
+RemainAfterExit=yes
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

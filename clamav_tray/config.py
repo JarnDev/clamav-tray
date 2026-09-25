@@ -34,6 +34,8 @@ KNOWN_LABELS = {
     "clamd@scan.service": "ClamAV Daemon",
     "clamav-freshclam.service": "Freshclam (updates)",
     "clamav-clamonacc.service": "On-Access Scan",
+    "clamav-tray-daily.service": "Daily scan",
+    "clamav-tray-downloads.service": "Downloads watcher",
 }
 
 
@@ -64,9 +66,14 @@ class Config:
             return self.labels[unit_id]
         if unit_id in KNOWN_LABELS:
             return KNOWN_LABELS[unit_id]
-        # clamav-scan-downloads.service -> "Scan Downloads"
+        # Unidade templated: clamav-tray-usb@sdc1.service -> "Usb (sdc1)". Sem
+        # isto o rotulo sairia com o @ cru, que nao diz nada a quem olha a bandeja.
         stem = unit_id.rsplit(".", 1)[0]
-        stem = re.sub(r"^clamav?-", "", stem).replace("-", " ").replace("_", " ")
+        if "@" in stem:
+            base, _, instance = stem.partition("@")
+            base = re.sub(r"^clamav?-(tray-)?", "", base).replace("-", " ")
+            return f"{base.title()} ({instance})" if instance else base.title()
+        stem = re.sub(r"^clamav?-(tray-)?", "", stem).replace("-", " ").replace("_", " ")
         return stem.title() or unit_id
 
 

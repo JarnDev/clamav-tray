@@ -24,6 +24,7 @@ o que quiser, ou nenhum, ou use como referência para escrever o seu.
 |---|---|
 | [`extras/daily-scan`](extras/daily-scan) | varredura diária da home, com exclusões e quarentena |
 | [`extras/downloads-watch`](extras/downloads-watch) | varre a pasta Downloads a cada arquivo novo |
+| [`extras/usb-scan`](extras/usb-scan) | varre mídia removível assim que é montada |
 | [`extras/quarantine-stats`](extras/quarantine-stats) | publica o resumo da quarentena de root para o tray ler |
 
 ## Regras que todo instalador aqui segue

@@ -1,0 +1,15 @@
+# Dispara a varredura de midia removivel via SYSTEMD_WANTS, nao via RUN+=.
+#
+# POR QUE NAO RUN+=: a documentacao do udev e categorica — "Starting daemons or
+# other long-running processes is not allowed; the forked processes, detached or
+# not, will be UNCONDITIONALLY KILLED after the event handling has finished."
+# Uma varredura de pendrive dura mais que um evento do udev, entao RUN+= a mata
+# no meio. A doc nomeia a saida: uma unidade de servico puxada pelo dispositivo.
+#
+# Ganho colateral: virando unidade, ela aparece no clamav-tray — que descobre por
+# unidade, e nao enxerga processo solto.
+#
+# DEVTYPE=="partition" + KERNEL=="sd*[0-9]" evitam disparar tambem no disco
+# inteiro, alem de em cada particao.
+ACTION=="add", SUBSYSTEMS=="usb", ENV{DEVTYPE}=="partition", KERNEL=="sd*[0-9]", \
+  TAG+="systemd", ENV{SYSTEMD_WANTS}+="clamav-tray-usb@%k.service"
