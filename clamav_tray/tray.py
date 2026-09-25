@@ -360,6 +360,14 @@ class Tray:
             label, "", widgets.OK if unit.is_healthy else widgets.WARN)
 
     def _idle_card(self, state, broken, result, mark) -> list:
+        # O bloco de topo usa a varredura COMPLETA, e as duas linhas saem da MESMA
+        # unidade. Antes o horario vinha da agendada e o veredito da sob demanda:
+        # "Ultima varredura hoje 07:42 / Limpa (4s)" descrevia duas varreduras
+        # diferentes como se fossem uma.
+        full = units.pick_full_scan_unit(state)
+        if full is not None:
+            result = scan.parse_summary(history.last_summary(
+                self.cfg.scan_log, full.id, user=full.user_scope) or "")
         """Bloco de topo quando nao ha varredura em curso."""
         title, subtitle = self._headline([], broken, result)
         rows = [widgets.status_row(title, "", mark)]
@@ -368,10 +376,15 @@ class Tray:
         if subtitle and (broken or result.is_alarming):
             rows.append(widgets.line(subtitle))
 
-        when = self._when_last(state)
-        if when:
-            rows.append(widgets.line(_("Last scan {when}", when=when)))
-        rows.append(widgets.line(text.describe(result).capitalize()))
+        if full is not None and full.finished_at:
+            rows.append(widgets.line(
+                _("Last scan {when}", when=text.relative_time(full.finished_at))))
+        descricao = text.describe(result).capitalize()
+        # Quando o unico dado vem da sob demanda, diz-se de ONDE ele veio: sem
+        # isso, o veredito de um pendrive passaria por veredito da maquina.
+        if full is not None and full.user_scope:
+            descricao += f" · {_('on-demand scan')}"
+        rows.append(widgets.line(descricao))
         if nxt := self._next_scan(state):
             rows.append(widgets.line(_("Next {when}", when=nxt)))
         return rows

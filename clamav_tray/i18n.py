@@ -42,6 +42,7 @@ CATALOGS: dict[str, dict[str, str]] = {
         "scanned {when}": "varrido {when}",
         "not scanned": "não varrido",
         "On-demand scan": "Varredura sob demanda",
+        "on-demand scan": "varredura sob demanda",
         "finished {when}": "concluída {when}",
         "finished": "concluída",
         "running": "em andamento",

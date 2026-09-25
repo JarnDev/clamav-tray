@@ -258,3 +258,24 @@ def pick_scan_unit(state: dict[str, Unit]) -> Unit | None:
         return None
     jobs.sort(key=lambda u: (not u.user_scope, u.id))
     return jobs[0]
+
+
+def pick_full_scan_unit(state: dict[str, Unit]) -> Unit | None:
+    """A tarefa que representa a varredura COMPLETA da maquina.
+
+    Diferente de pick_scan_unit, que prefere a sob demanda por ser a mais recente
+    e a que o usuario acabou de pedir.
+
+    Aqui a preferencia se inverte, e o motivo e de leitura: o bloco de topo
+    responde "esta maquina esta protegida?". Uma varredura de 4 segundos num
+    pendrive nao responde isso — mas apareceria como "Limpa (4s)" logo abaixo de
+    "Protegido", sugerindo que a maquina inteira foi conferida.
+
+    Sem varredura agendada (o caso de fabrica), cai na sob demanda: dado parcial
+    identificado e melhor que nenhum.
+    """
+    jobs = [u for u in state.values() if u.kind is Kind.JOB]
+    if not jobs:
+        return None
+    jobs.sort(key=lambda u: (u.user_scope, u.id))
+    return jobs[0]
