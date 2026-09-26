@@ -613,7 +613,7 @@ def _current_user() -> str:
 
 
 def _shorten(path) -> str:
-    """/home/oranos/.local/... -> ~/.local/... — caminho inteiro domina a linha."""
+    """/home/user/.local/... -> ~/.local/... — caminho inteiro domina a linha."""
     text_ = str(path)
     home = str(Path.home())
     return "~" + text_[len(home):] if text_.startswith(home) else text_

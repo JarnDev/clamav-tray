@@ -227,7 +227,7 @@ nada é varrido até você clicar.
 ```
 DISPOSITIVOS
 🟡  KINGSTON   14,9 GB · não varrido
-     /media/oranos/KINGSTON
+     /media/user/KINGSTON
 ```
 
 Clicar varre. Enquanto varre, valem a barra de progresso e o botão "Parar
