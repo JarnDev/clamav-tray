@@ -163,7 +163,7 @@ class Tray:
             key, mark = "ok", widgets.OK
 
         self.indicator.set_icon_full(ICONS[key], "ClamAV")
-        self.indicator.set_label(self._indicator_label(running, loose_scan, result, pending), "")
+        self.indicator.set_label(self._indicator_label(running, loose_scan, result, pending, broken), "")
         self.indicator.set_menu(
             self._build_menu(state, running, broken, result, mark, loose_scan, media)
         )
@@ -253,7 +253,7 @@ class Tray:
             return pr.fraction, f"{base} · {pr.done:,}/{pr.total:,}".replace(",", ".")
         return None, base
 
-    def _indicator_label(self, running, loose_scan, result, pending=()) -> str:
+    def _indicator_label(self, running, loose_scan, result, pending=(), broken=()) -> str:
         """Texto ao lado do icone na barra. Vazio em repouso — indicador que fala o
         tempo todo vira ruido; o que fala so quando ha o que dizer, e lido."""
         if result.is_alarming:
@@ -267,6 +267,11 @@ class Tray:
             return "…"
         if pending:
             return f"⚠ {len(pending)}" if len(pending) > 1 else "⚠"
+        if broken:
+            # Sem isto, "servico caido" aparecia como escudo pela metade e NADA
+            # ao lado — quase indistinguivel do escudo cheio de "protegido" a
+            # 16px. Os outros estados todos carregam rotulo; este ficou de fora.
+            return f"⚠ {len(broken)}" if len(broken) > 1 else "⚠"
         return ""
 
     def _headline(self, running, broken, result, loose=False) -> tuple[str, str]:

@@ -25,6 +25,9 @@ clamav-tray = "clamav_tray.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/JarnDev/clamav-tray"
+Documentation = "https://github.com/JarnDev/clamav-tray/tree/main/docs"
+Changelog = "https://github.com/JarnDev/clamav-tray/blob/main/CHANGELOG.md"
+Issues = "https://github.com/JarnDev/clamav-tray/issues"
 
 [tool.setuptools]
 packages = ["clamav_tray"]

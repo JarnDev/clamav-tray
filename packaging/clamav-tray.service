@@ -1,0 +1,25 @@
+[Unit]
+# Servico de USUARIO, nao unidade de sistema: o tray roda como voce, le o systemd
+# sem privilegio e varre com --fdpass. Nada aqui precisa de root.
+Description=ClamAV tray indicator
+Documentation=https://github.com/JarnDev/clamav-tray
+PartOf=graphical-session.target
+After=graphical-session.target
+# Trava contra loop se o programa quebrar de verdade — por exemplo se um upgrade
+# da distro remover o binding do AppIndicator.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/clamav-tray
+# `always` e nao `on-failure`: o systemd considera SIGTERM uma parada LIMPA, entao
+# on-failure NAO traria o icone de volta quando algo matasse o processo — que e
+# exatamente o caso em que voce fica sem indicador sem perceber.
+#
+# Para parar de proposito:  systemctl --user stop clamav-tray
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target

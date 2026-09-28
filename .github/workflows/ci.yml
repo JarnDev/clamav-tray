@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # 3.11 e o piso: tomllib entrou nela.
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Testes
+        # Sem pytest de proposito: o modulo testado nao tem dependencia, e o CI
+        # nao deveria precisar de mais que o interpretador para prova-lo.
+        run: |
+          python -c "
+          import sys, traceback
+          sys.path.insert(0, '.')
+          import tests.test_scan as t
+          falhas = 0
+          for n in sorted(x for x in dir(t) if x.startswith('test_')):
+              try:
+                  getattr(t, n)()
+                  print('ok  ', n)
+              except Exception:
+                  falhas += 1
+                  print('FALHA', n)
+                  traceback.print_exc()
+          sys.exit(1 if falhas else 0)
+          "
+
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Sintaxe de todos os modulos
+        run: python -c "import ast,pathlib;[ast.parse(p.read_text()) for p in pathlib.Path('clamav_tray').glob('*.py')]"
+      - name: Sintaxe dos scripts de shell
+        run: |
+          for f in $(git ls-files '*.sh'); do bash -n "$f" || exit 1; done
+      - name: Unidades do systemd sao validas
+        run: |
+          for f in $(git ls-files '*.service' '*.timer'); do
+            grep -qE '^\[(Unit|Service|Timer|Install)\]' "$f" || { echo "sem secao: $f"; exit 1; }
+          done

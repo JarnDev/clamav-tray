@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=ClamAV Tray
+Name[pt_BR]=ClamAV na bandeja
+Comment=ClamAV status in the system tray
+Comment[pt_BR]=Estado do ClamAV na bandeja do sistema
+Exec=clamav-tray
+Icon=security-high-symbolic
+Terminal=false
+Categories=System;Security;Monitor;
+Keywords=antivirus;clamav;scan;security;
+# X-GNOME-Autostart-enabled permite desligar pelo app de Aplicativos de Sessao
+# sem apagar o arquivo.
+X-GNOME-Autostart-enabled=true
