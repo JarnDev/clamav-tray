@@ -16,8 +16,10 @@ quarentena:
 > **brancos** porque é assim que são de fato: o indicador pede um ícone pelo
 > nome (`security-high-symbolic`) e quem pinta é o shell, com a cor de primeiro
 > plano do painel — o que distingue um estado do outro é a forma e o rótulo ao
-> lado, não a cor. A primeira faixa é regenerável com
-> `python3 docs/screenshots/make-tray-states.py`.
+> lado, não a cor. A barra de progresso usa as constantes do próprio
+> `widgets.py`, lidas do código, para a imagem não poder divergir do programa.
+> As duas são regeneráveis: `python3 docs/screenshots/make-tray-states.py` e
+> `make-menu-states.py`.
 
 ## Por que existe
 

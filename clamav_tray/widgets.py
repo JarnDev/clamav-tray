@@ -68,7 +68,12 @@ def status_row(label: str, value: str, mark: str, detail: str = "") -> Gtk.MenuI
 # A barra e DESENHADA COM CARACTERES, nao com Gtk.ProgressBar. Ver a nota sobre
 # dbusmenu no topo deste arquivo: widget nenhum atravessa o protocolo.
 BAR_FULL = "█"
-BAR_EMPTY = "░"
+# U+2592 (meio), e nao U+2591 (um quarto). O trilho vazio precisa ser VISIVEL: com
+# um quarto de cobertura ele sumia no fundo do menu — medido na captura publicada,
+# 2:1 contra o fundo, enquanto a parte cheia dava 9,8:1. So se via o pedaco cheio,
+# e sem o trilho nao da para julgar a proporcao; a barra virava enfeite e o numero
+# ao lado fazia todo o trabalho.
+BAR_EMPTY = "▒"
 BAR_CELLS = 22
 
 

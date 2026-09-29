@@ -31,14 +31,26 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   gráfico. Agora o atributo é removido antes da renderização e os ícones saem na
   cor de primeiro plano do painel: **19:1**.
 
+- **O trilho da barra de progresso era invisível.** Ele usava `░` (U+2591, um
+  quarto de cobertura): medido no tamanho real, **1,00:1** contra o fundo do
+  menu — a mesma cor. Só a parte cheia aparecia, e sem o trilho não dá para
+  julgar a proporção. Agora é `▒` (U+2592, metade): **1,45:1**. O teto é baixo
+  porque cor não atravessa o dbusmenu (ver `docs/dbusmenu.md`), então a única
+  alavanca é a densidade do glifo — `▓` foi testado e rejeitado: fica perto
+  demais do cheio e a fronteira entre os dois se perde.
+
 ### Mudado
 
 - A descoberta dos módulos de teste saiu do YAML do CI para `tests/run.py`: com
   a lista colada no workflow, um arquivo de teste novo não rodava até alguém
   lembrar de editá-lo.
-- A faixa de estados do ícone agora é **regenerável**:
-  `docs/screenshots/make-tray-states.py`. Antes o HTML que a produziu morava num
-  diretório temporário, então corrigi-la significava refazê-la do zero.
+- As duas imagens do README agora são **regeneráveis**:
+  `docs/screenshots/make-tray-states.py` e `make-menu-states.py`. Antes o HTML
+  que as produziu morava num diretório temporário, então corrigi-las significava
+  refazê-las do zero. A do menu monta a barra com as constantes lidas de
+  `widgets.py`, para não poder divergir do programa.
+- Texto secundário e separadores dos menus com mais contraste (seções de 5,4:1
+  para 7,3:1), e o mesmo fundo nas duas imagens.
 
 ## [0.1.0] — 2026-09-25
 
