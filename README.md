@@ -48,6 +48,10 @@ Nenhum dos dois precisa de root. Prefira o primeiro: se o processo morrer, ele
 volta, e o journal guarda o motivo. O autostart XDG dispara e esquece — foi assim
 que o indicador que deu origem a este projeto sumiu da bandeja sem deixar rastro.
 
+O instalador funciona **antes** de `pipx install`: sem o `clamav-tray` no PATH,
+ele aponta a unidade para o código no diretório atual. E confere se o serviço
+subiu — não afirma "ativado" sem olhar.
+
 ### Bandeja no seu desktop
 
 | Desktop | Situação |
