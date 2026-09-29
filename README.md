@@ -11,8 +11,13 @@ quarentena:
 
 ![Estados do menu](docs/screenshots/menu-states.png)
 
-> As imagens são renderizações fiéis do menu, montadas a partir da estrutura que
-> o próprio programa produz. Os ícones são os SVGs do tema Adwaita.
+> As imagens são renderizações fiéis, montadas a partir da estrutura que o
+> próprio programa produz, com os SVGs do tema Adwaita. Os ícones aparecem
+> **brancos** porque é assim que são de fato: o indicador pede um ícone pelo
+> nome (`security-high-symbolic`) e quem pinta é o shell, com a cor de primeiro
+> plano do painel — o que distingue um estado do outro é a forma e o rótulo ao
+> lado, não a cor. A primeira faixa é regenerável com
+> `python3 docs/screenshots/make-tray-states.py`.
 
 ## Por que existe
 

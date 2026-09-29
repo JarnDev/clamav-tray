@@ -23,11 +23,22 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   existe em instalação a partir do código. Agora ele resolve o executável, recusa
   se não houver como executar, e confere `is-active` depois de habilitar.
 
+- **A faixa de estados do ícone era ilegível.** Os símbolicos do Adwaita trazem
+  `fill="#2e3436"` embutido no `<path>`, que vence o `currentColor` do `<svg>`. O
+  GTK ignora esse atributo e recolore o ícone; um navegador não. Como a imagem é
+  renderizada no Chrome, os cinco ícones saíam azul-escuro sobre pílula
+  cinza-escura — medido, **1,16:1**, contra o mínimo de 3:1 da WCAG para elemento
+  gráfico. Agora o atributo é removido antes da renderização e os ícones saem na
+  cor de primeiro plano do painel: **19:1**.
+
 ### Mudado
 
 - A descoberta dos módulos de teste saiu do YAML do CI para `tests/run.py`: com
   a lista colada no workflow, um arquivo de teste novo não rodava até alguém
   lembrar de editá-lo.
+- A faixa de estados do ícone agora é **regenerável**:
+  `docs/screenshots/make-tray-states.py`. Antes o HTML que a produziu morava num
+  diretório temporário, então corrigi-la significava refazê-la do zero.
 
 ## [0.1.0] — 2026-09-25
 
