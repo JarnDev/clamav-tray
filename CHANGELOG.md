@@ -49,8 +49,10 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   que as produziu morava num diretório temporário, então corrigi-las significava
   refazê-las do zero. A do menu monta a barra com as constantes lidas de
   `widgets.py`, para não poder divergir do programa.
-- Texto secundário e separadores dos menus com mais contraste (seções de 5,4:1
-  para 7,3:1), e o mesmo fundo nas duas imagens.
+- Texto secundário e separadores dos menus com mais contraste, e o mesmo fundo
+  nas duas imagens. Medido sobre o fundo do menu (`#353535`): seções de **3,63:1
+  para 5,19:1**, linhas de detalhe de 5,82:1 para 6,43:1; a legenda acima de cada
+  menu, sobre o fundo da página, de 5,36:1 para 7,57:1.
 
 ## [0.1.0] — 2026-09-25
 
