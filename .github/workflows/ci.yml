@@ -20,22 +20,10 @@ jobs:
       - name: Testes
         # Sem pytest de proposito: o modulo testado nao tem dependencia, e o CI
         # nao deveria precisar de mais que o interpretador para prova-lo.
-        run: |
-          python -c "
-          import sys, traceback
-          sys.path.insert(0, '.')
-          import tests.test_scan as t
-          falhas = 0
-          for n in sorted(x for x in dir(t) if x.startswith('test_')):
-              try:
-                  getattr(t, n)()
-                  print('ok  ', n)
-              except Exception:
-                  falhas += 1
-                  print('FALHA', n)
-                  traceback.print_exc()
-          sys.exit(1 if falhas else 0)
-          "
+        # A descoberta dos modulos mora em tests/run.py, e nao aqui: com a lista
+        # colada no YAML, um arquivo de teste novo nao rodava ate alguem lembrar
+        # de editar o workflow.
+        run: python tests/run.py
 
   syntax:
     runs-on: ubuntu-latest

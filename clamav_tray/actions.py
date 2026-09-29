@@ -203,6 +203,16 @@ def start_scan(
     from . import progress
     listing = progress.list_path()
     out = progress.output_path()
+    # ESVAZIA a saida antes de comecar. O `>` do shell la embaixo so trunca quando
+    # o shell de fato roda; ate la — e para sempre, se o lancamento falhar — o
+    # arquivo ainda guarda o resumo da varredura ANTERIOR, e quem le nao tem como
+    # saber que e velho. Era metade do bug do alarme preso: o resultado de uma
+    # varredura de quatro dias atras respondia por "agora".
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(b"")
+    except OSError:
+        pass
     # Midia removivel nao tem o que excluir: ali nao ha cache de navegador nem
     # node_modules. Passar `excludes=[]` evita aplicar as regras da home num
     # pendrive, onde elas so gastariam tempo.

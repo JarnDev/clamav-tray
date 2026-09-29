@@ -263,10 +263,22 @@ def scan_process_running() -> bool:
 
 
 def pick_scan_unit(state: dict[str, Unit]) -> Unit | None:
-    """Qual tarefa representa "a varredura" na interface.
+    """Qual tarefa representa "a varredura" na interface: a MAIS RECENTE.
 
-    A sob demanda (barramento do usuario) tem precedencia sobre a agendada: e a
-    mais recente e e a que a pessoa acabou de pedir.
+    Ordem: rodando agora > terminou por ultimo > sob demanda como desempate.
+
+    A data e o criterio, e nao o barramento. Antes esta funcao preferia a unidade
+    do usuario incondicionalmente, com a justificativa de que a sob demanda "e a
+    mais recente". Isso e verdade nos minutos seguintes ao clique e falso para
+    sempre depois disso: a unidade transitoria fica `failed` com
+    --remain-after-exit (que e justamente o que guarda o resultado), e nada a
+    supera. Uma ameaca encontrada segunda-feira continuava acendendo o icone na
+    sexta, com tres varreduras agendadas limpas no meio — e nenhuma delas chegava
+    a ser consultada, porque a escolha da unidade acontece antes da leitura do
+    resumo.
+
+    `finished_at` ausente ordena por ultimo: unidade que nunca rodou nao pode
+    passar na frente de uma que rodou.
 
     Mora aqui, e nao na camada grafica, porque e regra sobre unidades — e porque
     ja houve divergencia: o modo --dump reimplementou com um `next()` que pegava a
@@ -275,7 +287,12 @@ def pick_scan_unit(state: dict[str, Unit]) -> Unit | None:
     jobs = [u for u in state.values() if u.kind is Kind.JOB]
     if not jobs:
         return None
-    jobs.sort(key=lambda u: (not u.user_scope, u.id))
+    jobs.sort(key=lambda u: (
+        not u.is_running_job,
+        -(u.finished_at.timestamp() if u.finished_at else 0.0),
+        not u.user_scope,
+        u.id,
+    ))
     return jobs[0]
 
 
