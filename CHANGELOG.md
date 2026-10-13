@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não lançado]
 
+## [0.2.0] — 2026-10-13
+
 ### Adicionado
 
 - **Pacote no PyPI** (`pipx install --system-site-packages clamav-tray`) e
