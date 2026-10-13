@@ -33,8 +33,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   `clamav-tray --install-autostart`, com os mesmos argumentos. Agora pergunta
   antes de gravar, e sem terminal recusa em vez de gravar direto.
 - README com o comando de instalação de Debian/Ubuntu, Fedora e Arch, conferidos
-  em containers limpos com systemd, e as duas armadilhas de configuração que
-  eles mostraram (socket comentado no Fedora; unidade que some sem a base de
+  em containers limpos (no Fedora e no Arch, com systemd e descoberta ao vivo),
+  e as duas armadilhas de configuração que eles mostraram (socket comentado no Fedora; unidade que some sem a base de
   assinaturas no Arch).
 - O autostart grava `~/.local/bin/clamav-tray` (o link do pipx) em vez do
   caminho dentro do venv, que muda se o pipx recriar o ambiente.
