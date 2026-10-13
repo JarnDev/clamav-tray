@@ -1,165 +1,185 @@
 # Changelog
 
-Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Não lançado]
+## [Unreleased]
+
+### Added
+
+- **Documentation in English and Brazilian Portuguese.** English is the default
+  (`X.md`, also what PyPI shows); Portuguese sits next to it as `X.pt-BR.md`,
+  with a language switcher on the first line of every page. Faithful translation:
+  same sections, same measurements.
+- `scripts/check-docs-i18n.py`, run in CI: every page needs its pair, with the
+  same number of headings and code blocks. It catches "changed one language and
+  forgot the other"; it does not judge the translation itself.
+
+### Changed
+
+- The CHANGELOG is now English-only, past entries included. `scripts/release.sh`
+  looks for `## [Unreleased]` instead of `## [Não lançado]`.
+- README status and CONTRIBUTING brought up to date: 0.3 on PyPI, Fedora and
+  Arch checked in containers, tests run with `python3 tests/run.py`.
+
+### Fixed
+
+- `clamav_tray.data` is listed in `packages`: setuptools warned at build time
+  that relying on it being picked up implicitly will stop working.
 
 ## [0.3.0] — 2026-10-13
 
-### Adicionado
+### Added
 
-- `scripts/release.sh X.Y.Z`: lança uma versão em um comando, com `--dry-run`.
-  Confere antes de gravar (número maior e inédito no CHANGELOG, notas presentes,
-  árvore limpa, sincronizado com a `origin`, CI verde, testes), sobe a versão nos
-  dois arquivos, fecha o CHANGELOG, faz commit e tag assinados e envia por SSH.
-  O ambiente `pypi` agora exige aprovação manual e só aceita tags `v*`.
-- **`clamav-tray --dump --json`**: o estado que o tray enxerga, como dado, para
-  script, Glance, Conky ou `jq`. Formato versionado (`schema`), documentado em
-  `docs/json.md` e travado por `tests/test_report.py`. Não precisa de tela.
-- **Autostart sem clonar o repositório**: `clamav-tray --install-autostart
-  [--xdg]` e `--uninstall-autostart`. Os modelos da unidade e do `.desktop`
-  agora vão dentro do pacote (`clamav_tray/data/`).
-- **`clamav-tray --show-autostart [--xdg]`: inspecionar antes de permitir.**
-  Mostra destino, comando, o arquivo inteiro e os `systemctl` que viriam — ou a
-  diferença, se já houver arquivo — sem gravar nada. O instalador mostra o mesmo
-  e só grava com confirmação; fora de terminal, só com `--yes`.
-- **Notificação ao terminar a varredura sob demanda** (home ou mídia), pelo
-  próprio tray: limpa, ameaças isoladas, ou ameaças encontradas e **não**
-  isoladas (mídia somente leitura) — esta última urgente. Parar a varredura de
-  propósito não notifica. Fala direto com `org.freedesktop.Notifications` via
-  Gio, sem dependência nova; sem servidor de notificação, segue sem avisar.
+- `scripts/release.sh X.Y.Z`: releases a version in one command, with `--dry-run`.
+  Checks before writing anything (version higher than the current one and not yet
+  in the CHANGELOG, notes present, clean tree, in sync with `origin`, green CI,
+  tests), bumps the version in both files, closes the CHANGELOG, makes a signed
+  commit and tag, and pushes over SSH. The `pypi` environment now requires manual
+  approval and only accepts `v*` tags.
+- **`clamav-tray --dump --json`**: the state the tray sees, as data, for scripts,
+  Glance, Conky or `jq`. Versioned format (`schema`), documented in
+  `docs/json.md` and locked down by `tests/test_report.py`. Needs no display.
+- **Autostart without cloning the repository**: `clamav-tray --install-autostart
+  [--xdg]` and `--uninstall-autostart`. The unit and `.desktop` templates now ship
+  inside the package (`clamav_tray/data/`).
+- **`clamav-tray --show-autostart [--xdg]`: inspect before allowing.**
+  Shows the destination, the command, the whole file and the `systemctl` calls
+  that would follow — or the diff, if a file already exists — without writing
+  anything. The installer shows the same and only writes after confirmation;
+  outside a terminal, only with `--yes`.
+- **Notification when the on-demand scan finishes** (home or media), from the
+  tray itself: clean, threats quarantined, or threats found and **not**
+  contained (read-only media) — the last one urgent. Stopping the scan on
+  purpose doesn't notify. Talks directly to `org.freedesktop.Notifications` via
+  Gio, with no new dependency; without a notification server, it carries on
+  without notifying.
 
-### Alterado
+### Changed
 
-- `packaging/install-autostart.sh` passa a só encaminhar para
-  `clamav-tray --install-autostart`, com os mesmos argumentos. Agora pergunta
-  antes de gravar, e sem terminal recusa em vez de gravar direto.
-- README com o comando de instalação de Debian/Ubuntu, Fedora e Arch, conferidos
-  em containers limpos (no Fedora e no Arch, com systemd e descoberta ao vivo),
-  e as duas armadilhas de configuração que eles mostraram (socket comentado no Fedora; unidade que some sem a base de
-  assinaturas no Arch).
-- O autostart grava `~/.local/bin/clamav-tray` (o link do pipx) em vez do
-  caminho dentro do venv, que muda se o pipx recriar o ambiente.
+- `packaging/install-autostart.sh` now only forwards to
+  `clamav-tray --install-autostart`, with the same arguments. It now asks before
+  writing, and without a terminal it refuses instead of writing directly.
+- README with the install command for Debian/Ubuntu, Fedora and Arch, checked in
+  clean containers (on Fedora and Arch, with systemd and live discovery), and the
+  two configuration pitfalls they revealed (socket commented out on Fedora; a
+  unit that disappears without the signature database on Arch).
+- Autostart writes `~/.local/bin/clamav-tray` (the pipx link) instead of the
+  path inside the venv, which changes if pipx recreates the environment.
 
-### Corrigido
+### Fixed
 
-- **Sem nenhum serviço do ClamAV, o tray mostrava escudo verde**: "Protegido,
-  todos os serviços no ar" sobre serviço nenhum. Visto num Fedora recém-instalado,
-  que não habilita nada. Agora é "Atenção — nenhum serviço do ClamAV encontrado",
-  e o `status` do JSON é `warn`.
-- **Sem tela, o programa abortava com core dump.** O GTK não falha sem
-  `DISPLAY`: aborta (`Gtk-ERROR`) no primeiro widget. Agora `Gtk.init_check()`
-  é conferido antes, e o programa diz o que falta e sai com código 1. Cobre
-  também `DISPLAY` apontando para uma tela que não existe — conferir só a
-  variável de ambiente não pegaria esse caso.
+- **With no ClamAV service at all, the tray showed a green shield**: "Protected,
+  all services running" about no service whatsoever. Seen on a freshly installed
+  Fedora, which enables nothing. Now it's "Attention — no ClamAV service found",
+  and the JSON `status` is `warn`.
+- **Without a display, the program aborted with a core dump.** GTK doesn't fail
+  without `DISPLAY`: it aborts (`Gtk-ERROR`) at the first widget. Now
+  `Gtk.init_check()` is checked first, and the program says what's missing and
+  exits with code 1. It also covers a `DISPLAY` pointing at a display that
+  doesn't exist — checking only the environment variable wouldn't catch that case.
 
 ## [0.2.0] — 2026-10-13
 
-### Adicionado
+### Added
 
-- **Pacote no PyPI** (`pipx install --system-site-packages clamav-tray`) e
-  workflow que publica a cada tag `v*`, por publicação confiável (OIDC, sem token
-  guardado). O workflow recusa publicar se a tag, o `pyproject.toml` e o
-  `__version__` não disserem a mesma versão.
-- Sem PyGObject no ambiente, o programa diz como corrigir em vez de despejar um
-  traceback. Testado num Ubuntu 24.04 limpo: era o que acontecia com
-  `pipx install` sem `--system-site-packages`.
+- **Package on PyPI** (`pipx install --system-site-packages clamav-tray`) and a
+  workflow that publishes on every `v*` tag, via trusted publishing (OIDC, no
+  stored token). The workflow refuses to publish if the tag, `pyproject.toml` and
+  `__version__` don't state the same version.
+- Without PyGObject in the environment, the program says how to fix it instead of
+  dumping a traceback. Tested on a clean Ubuntu 24.04: that's what happened with
+  `pipx install` without `--system-site-packages`.
 
-### Alterado
+### Changed
 
-- Links e imagens do README agora são absolutos, para renderizarem no PyPI.
-- Licença no formato SPDX (PEP 639); o formato antigo vira erro no setuptools a
-  partir de fev/2027.
-- **`daily-scan` agora é incremental na maioria dos dias.** Varria a home inteira
-  todo dia — medido, 4h40 sobre 1,1 milhão de arquivos, das 03:12 às 07:54, num
-  SSD que fica inutilizável enquanto isso. Agora o mesmo timer diário varre só o
-  que mudou desde a última varredura concluída (por *ctime*, que não se falsifica
-  com `touch -d`), e a completa roda quando a última tem mais de 7 dias
-  (`CLAMAV_TRAY_FULL_EVERY`). Detalhes e o porquê de cada escolha em
-  `contrib/extras/daily-scan/README.md`. O estado fica em
-  `/var/lib/clamav-tray-daily` (`CLAMAV_TRAY_DAILY_STATE` — nome distinto de
-  `CLAMAV_TRAY_STATE`, que é onde o tray lê as estatísticas da quarentena).
+- README links and images are now absolute, so they render on PyPI.
+- License in SPDX format (PEP 639); the old format becomes an error in setuptools
+  from Feb/2027.
+- **`daily-scan` is now incremental on most days.** It scanned the whole home
+  every day — measured, 4h40 over 1.1 million files, from 03:12 to 07:54, on an
+  SSD that becomes unusable meanwhile. Now the same daily timer scans only what
+  changed since the last completed scan (by *ctime*, which can't be forged with
+  `touch -d`), and the full scan runs when the last one is more than 7 days old
+  (`CLAMAV_TRAY_FULL_EVERY`). Details and the reason behind each choice in
+  `contrib/extras/daily-scan/README.md`. The state lives in
+  `/var/lib/clamav-tray-daily` (`CLAMAV_TRAY_DAILY_STATE` — a name distinct from
+  `CLAMAV_TRAY_STATE`, which is where the tray reads the quarantine statistics).
+- Test module discovery moved from the CI YAML to `tests/run.py`: with the list
+  pasted into the workflow, a new test file didn't run until someone remembered
+  to edit it.
+- Both README images are now **regenerable**:
+  `docs/screenshots/make-tray-states.py` and `make-menu-states.py`. Before, the
+  HTML that produced them lived in a temporary directory, so fixing them meant
+  redoing them from scratch. The menu one builds the bar from the constants read
+  from `widgets.py`, so it can't diverge from the program.
+- Secondary text and menu separators with more contrast, and the same background
+  in both images. Measured against the menu background (`#353535`): sections from
+  **3.63:1 to 5.19:1**, detail lines from 5.82:1 to 6.43:1; the caption above
+  each menu, against the page background, from 5.36:1 to 7.57:1.
 
-### Corrigido
+### Fixed
 
-- **O alarme escolhia a varredura pelo barramento, não pela data.**
-  `pick_scan_unit` preferia a unidade do usuário incondicionalmente, e a unidade
-  transitória permanece após terminar (`--remain-after-exit`, que é o que guarda
-  o resultado). Consequência: uma ameaça encontrada sob demanda continuava
-  acendendo o ícone dias depois, e as varreduras agendadas limpas no meio nunca
-  chegavam a ser lidas — a escolha da unidade acontece antes da leitura do
-  resumo. A ordem agora é: rodando agora > terminou por último > sob demanda como
-  desempate.
-- A varredura sob demanda **esvazia o arquivo de saída antes de disparar**. O
-  redirecionamento do shell só trunca quando o shell roda; até lá — e para
-  sempre, se o lançamento falhasse — o arquivo ainda respondia com o resumo da
-  varredura anterior.
-- O instalador de autostart afirmava "Ativado" enquanto o serviço falhava em
-  laço: a unidade tinha `ExecStart` fixo em `~/.local/bin/clamav-tray`, que não
-  existe em instalação a partir do código. Agora ele resolve o executável, recusa
-  se não houver como executar, e confere `is-active` depois de habilitar.
+- **The alarm picked the scan by bus, not by date.**
+  `pick_scan_unit` preferred the user unit unconditionally, and the transient
+  unit remains after finishing (`--remain-after-exit`, which is what keeps the
+  result). Consequence: a threat found on demand kept lighting up the icon days
+  later, and the clean scheduled scans in between were never read — the unit is
+  chosen before the summary is read. The order is now: running now > finished
+  last > on demand as the tiebreaker.
+- The on-demand scan **empties the output file before launching**. Shell
+  redirection only truncates when the shell runs; until then — and forever, if
+  the launch failed — the file still answered with the previous scan's summary.
+- The autostart installer claimed "Enabled" while the service was failing in a
+  loop: the unit had `ExecStart` hardcoded to `~/.local/bin/clamav-tray`, which
+  doesn't exist in an install from source. Now it resolves the executable,
+  refuses if there's no way to run it, and checks `is-active` after enabling.
 
-- **A faixa de estados do ícone era ilegível.** Os símbolicos do Adwaita trazem
-  `fill="#2e3436"` embutido no `<path>`, que vence o `currentColor` do `<svg>`. O
-  GTK ignora esse atributo e recolore o ícone; um navegador não. Como a imagem é
-  renderizada no Chrome, os cinco ícones saíam azul-escuro sobre pílula
-  cinza-escura — medido, **1,16:1**, contra o mínimo de 3:1 da WCAG para elemento
-  gráfico. Agora o atributo é removido antes da renderização e os ícones saem na
-  cor de primeiro plano do painel: **19:1**.
+- **The icon state strip was illegible.** Adwaita's symbolic icons carry
+  `fill="#2e3436"` embedded in the `<path>`, which beats the `<svg>`'s
+  `currentColor`. GTK ignores that attribute and recolors the icon; a browser
+  doesn't. Since the image is rendered in Chrome, the five icons came out dark
+  blue on a dark gray pill — measured, **1.16:1**, against the WCAG minimum of
+  3:1 for graphical objects. Now the attribute is removed before rendering and
+  the icons come out in the panel's foreground color: **19:1**.
 
-- **O trilho da barra de progresso era invisível.** Ele usava `░` (U+2591, um
-  quarto de cobertura): medido no tamanho real, **1,00:1** contra o fundo do
-  menu — a mesma cor. Só a parte cheia aparecia, e sem o trilho não dá para
-  julgar a proporção. Agora é `▒` (U+2592, metade): **1,45:1**. O teto é baixo
-  porque cor não atravessa o dbusmenu (ver `docs/dbusmenu.md`), então a única
-  alavanca é a densidade do glifo — `▓` foi testado e rejeitado: fica perto
-  demais do cheio e a fronteira entre os dois se perde.
-
-### Mudado
-
-- A descoberta dos módulos de teste saiu do YAML do CI para `tests/run.py`: com
-  a lista colada no workflow, um arquivo de teste novo não rodava até alguém
-  lembrar de editá-lo.
-- As duas imagens do README agora são **regeneráveis**:
-  `docs/screenshots/make-tray-states.py` e `make-menu-states.py`. Antes o HTML
-  que as produziu morava num diretório temporário, então corrigi-las significava
-  refazê-las do zero. A do menu monta a barra com as constantes lidas de
-  `widgets.py`, para não poder divergir do programa.
-- Texto secundário e separadores dos menus com mais contraste, e o mesmo fundo
-  nas duas imagens. Medido sobre o fundo do menu (`#353535`): seções de **3,63:1
-  para 5,19:1**, linhas de detalhe de 5,82:1 para 6,43:1; a legenda acima de cada
-  menu, sobre o fundo da página, de 5,36:1 para 7,57:1.
+- **The progress bar track was invisible.** It used `░` (U+2591, quarter
+  coverage): measured at real size, **1.00:1** against the menu background — the
+  same color. Only the filled part showed, and without the track you can't judge
+  the proportion. Now it's `▒` (U+2592, half): **1.45:1**. The ceiling is low
+  because color doesn't cross dbusmenu (see `docs/dbusmenu.md`), so the only
+  lever is glyph density — `▓` was tested and rejected: it's too close to full
+  and the boundary between the two gets lost.
 
 ## [0.1.0] — 2026-09-25
 
-Primeira versão pública. Nasceu de um script pessoal de 75 linhas.
+First public version. Born from a 75-line personal script.
 
-### Adicionado
+### Added
 
-- Estado das unidades do ClamAV, descobertas pelo glob `clam*` — cobre
-  `clamav-daemon.service` (Debian, Ubuntu, Arch) e `clamd@scan.service` (Fedora)
-- Distinção **daemon × tarefa** pelo `Type=` da unidade: sem ela, um monitor de
-  pasta apareceria como "varredura em andamento" eternamente
-- Varredura sob demanda da home e de mídia removível, como unidade transitória
-  do usuário — visível, interrompível e sem root
-- Barra de progresso por **contagem** de arquivos, não estimativa por relógio
-- Detecção de mídia removível por `/proc/mounts` + `/sys/block/*/removable`,
-  sem subprocesso
-- Duas quarentenas com donos distintos, e uma convenção para a de root publicar
-  estatísticas legíveis
-- Distinção entre ameaça **encontrada** e ameaça **isolada** — mídia somente
-  leitura reporta a primeira sem conseguir a segunda
-- Idioma configurável, com inglês como fonte
-- Quatro extras opcionais em `contrib/extras/`, cada um com instalador próprio
-- Autostart por serviço de usuário ou autostart XDG
+- State of the ClamAV units, discovered by the `clam*` glob — covers
+  `clamav-daemon.service` (Debian, Ubuntu, Arch) and `clamd@scan.service` (Fedora)
+- **Daemon × job** distinction by the unit's `Type=`: without it, a folder
+  monitor would show up as "scan in progress" forever
+- On-demand scan of home and removable media, as a transient user unit —
+  visible, stoppable and without root
+- Progress bar by file **count**, not a clock-based estimate
+- Removable media detection via `/proc/mounts` + `/sys/block/*/removable`,
+  without a subprocess
+- Two quarantines with distinct owners, and a convention for the root one to
+  publish readable statistics
+- Distinction between a threat **found** and a threat **contained** — read-only
+  media reports the first without achieving the second
+- Configurable language, with English as the source
+- Four optional extras in `contrib/extras/`, each with its own installer
+- Autostart as a user service or XDG autostart
 
-### Decisões registradas
+### Decisions recorded
 
-- O programa **observa**; não instala unidade nem agenda varredura. É o que o
-  mantém instalável sem root.
-- O veredito vem do `SCAN SUMMARY`, nunca do código de saída: o `clamdscan`
-  devolve 2 se qualquer arquivo não pôde ser aberto, e isso é rotina numa
-  varredura de horas.
-- Encontrar vírus não é falha da unidade, e sim o trabalho dela.
-- A barra é desenhada com caracteres porque widget não atravessa o dbusmenu.
-  Ver [docs/dbusmenu.md](docs/dbusmenu.md).
+- The program **observes**; it doesn't install units or schedule scans. That's
+  what keeps it installable without root.
+- The verdict comes from the `SCAN SUMMARY`, never from the exit code:
+  `clamdscan` returns 2 if any file couldn't be opened, and that's routine in an
+  hours-long scan.
+- Finding a virus isn't the unit's failure, it's its job.
+- The bar is drawn with characters because widgets don't cross dbusmenu.
+  See [docs/dbusmenu.md](docs/dbusmenu.md).

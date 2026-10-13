@@ -47,8 +47,8 @@ git fetch -q origin main
     || falha "main local e origin/main divergem — sincronize antes (o CI precisa ter rodado neste commit)"
 
 # Lancar sem nada em "Nao lancado" publicaria uma versao sem dizer o que mudou.
-NOTAS=$(awk '/^## \[Não lançado\]/{f=1;next} /^## \[/{f=0} f' CHANGELOG.md | grep -v '^[[:space:]]*$' || true)
-[ -n "$NOTAS" ] || falha "a secao [Não lançado] do CHANGELOG esta vazia"
+NOTAS=$(awk '/^## \[Unreleased\]/{f=1;next} /^## \[/{f=0} f' CHANGELOG.md | grep -v '^[[:space:]]*$' || true)
+[ -n "$NOTAS" ] || falha "a secao [Unreleased] do CHANGELOG esta vazia"
 
 # O CI do commit atual tem que ter passado: a tag publica exatamente este commit.
 ORIGEM=$(git remote get-url origin)
@@ -78,7 +78,7 @@ pergunta "Gravar commit e tag v$VERSAO assinados?" || { echo "cancelado, nada gr
 sed -i "s/^version = \"$ATUAL\"$/version = \"$VERSAO\"/" pyproject.toml
 sed -i "s/^__version__ = \"$ATUAL\"$/__version__ = \"$VERSAO\"/" clamav_tray/__init__.py
 # "Nao lancado" fica, vazia, em cima da secao nova.
-sed -i "0,/^## \[Não lançado\]$/s//## [Não lançado]\n\n## [$VERSAO] — $DATA/" CHANGELOG.md
+sed -i "0,/^## \[Unreleased\]$/s//## [Unreleased]\n\n## [$VERSAO] — $DATA/" CHANGELOG.md
 
 git add pyproject.toml clamav_tray/__init__.py CHANGELOG.md
 git commit -S -q -m "versao $VERSAO"
