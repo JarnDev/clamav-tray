@@ -1,10 +1,12 @@
-# Quarentena
+**English** · [Português (Brasil)](quarantine.pt-BR.md)
 
-Há duas, com donos e regras diferentes.
+# Quarantine
 
-O caminho **não** vem do `clamconf`: quarentena nasce do `--move=` de quem agendou a varredura,
-não da configuração do ClamAV, e não há caminho padrão na especificação. O programa procura nos
-lugares que aparecem na prática:
+There are two, with different owners and rules.
+
+The path does **not** come from `clamconf`: quarantine is born from the `--move=` of whoever scheduled
+the scan, not from ClamAV's configuration, and there's no default path in the specification. The program
+looks in the places that show up in practice:
 
 ```
 /var/quarantine/clamav
@@ -12,76 +14,76 @@ lugares que aparecem na prática:
 /var/spool/clamav/quarantine
 ```
 
-Fora desses, use `paths.quarantine` no arquivo de configuração.
+Outside those, use `paths.quarantine` in the configuration file.
 
-### Por que ela costuma dizer "precisa de root para listar"
+### Why it usually says "needs root to list"
 
 ```
-⚪ Quarentena   precisa de root para listar
+⚪ Quarantine   needs root to list
     /var/quarantine/clamav
 ```
 
-Quarentena é normalmente `750` com dono `root`, e isso está **certo** — é malware guardado. Não
-conseguir contar é o caso comum, não um erro de configuração.
+Quarantine is normally `750` owned by `root`, and that is **right** — it's stored malware. Not
+being able to count is the common case, not a configuration error.
 
-Por isso o programa distingue *não sei* de *vazia*: sem permissão ele diz que precisa de root, em
-vez de mostrar "vazia" e passar uma tranquilidade que não mediu.
+That's why the program distinguishes *don't know* from *empty*: without permission it says it needs root,
+instead of showing "empty" and conveying a reassurance it didn't measure.
 
-### Por que a ação abre um terminal, não o gerenciador de arquivos
+### Why the action opens a terminal, not the file manager
 
-Duas razões, ambas práticas:
+Two reasons, both practical:
 
-1. `xdg-open` numa pasta `750` de root devolve "permission denied" numa janela, sem explicar o
-   motivo. No terminal o `sudo` pergunta a senha e fica claro o que está acontecendo.
-2. **Ali dentro há malware de verdade.** Gerenciador de arquivos gera miniatura, indexa e lê
-   cabeçalho dos arquivos que exibe — encostar num executável malicioso com o thumbnailer é um
-   jeito ruim de olhar para ele. `ls` não abre nada.
+1. `xdg-open` on a root `750` folder returns "permission denied" in a window, without explaining
+   why. In the terminal, `sudo` asks for the password and it's clear what's happening.
+2. **There's real malware in there.** A file manager generates thumbnails, indexes and reads
+   headers of the files it displays — touching a malicious executable with the thumbnailer is a
+   bad way to look at it. `ls` opens nothing.
 
-Se quiser ler sem `sudo`, dá para mudar o grupo do diretório. É enfraquecer uma permissão
-deliberada; saiba que está fazendo isso.
+If you want to read it without `sudo`, you can change the directory's group. That's weakening a deliberate
+permission; know that you're doing it.
 
-## A varredura sob demanda
+## The on-demand scan
 
-O botão lança a varredura como **unidade transitória do usuário** (`systemd-run --user`), não como
-comando solto. Sem isso o indicador ficaria cego para a varredura que ele mesmo iniciou: não
-mostraria "em andamento" e perderia o resultado, porque a saída iria para a tela e não para lugar
-nenhum que desse para reler.
+The button launches the scan as a **transient user unit** (`systemd-run --user`), not as a
+loose command. Without that the indicator would be blind to the scan it started itself: it wouldn't
+show "in progress" and would lose the result, because the output would go to the screen and not anywhere
+that could be read again.
 
-Não precisa de root: com `--fdpass` quem abre os arquivos é você, e o `clamd` lê pelo descritor.
+It doesn't need root: with `--fdpass` the one who opens the files is you, and `clamd` reads through the descriptor.
 
-### Ela DETECTA, não põe em quarentena
+### It DETECTS, it doesn't quarantine
 
-Rodando como você, a varredura sob demanda não consegue escrever numa quarentena `750` de root —
-e essa permissão está certa. Então o `--move` só é passado quando você de fato pode escrever lá;
-caso contrário a varredura apenas **aponta** o que achou.
+Running as you, the on-demand scan can't write to a root `750` quarantine —
+and that permission is right. So `--move` is only passed when you can actually write there;
+otherwise the scan only **points out** what it found.
 
-Passar `--move` sem permissão não degrada com elegância: o `clamdscan` **aborta antes de olhar um
-único arquivo**, com `Failed to create quarantine lock file ... Permission denied` e status 2.
-Medido: uma varredura de 771 MB "terminou" em 0,000 s.
+Passing `--move` without permission doesn't degrade gracefully: `clamdscan` **aborts before looking at a
+single file**, with `Failed to create quarantine lock file ... Permission denied` and status 2.
+Measured: a 771 MB scan "finished" in 0.000 s.
 
-### Onde a sob demanda põe o que encontra
+### Where the on-demand scan puts what it finds
 
-Numa quarentena **sua**, em `~/.local/share/clamav-tray/quarantine` (modo `0700`), criada só
-quando for usada.
+In a quarantine of **yours**, at `~/.local/share/clamav-tray/quarantine` (mode `0700`), created only
+when it's used.
 
-Isso não enfraquece nada: o arquivo já estava na sua home, com as suas permissões. Movê-lo para
-ali não aumenta privilégio — **diminui exposição**, porque sai do lugar onde poderia ser aberto
-por engano e vai para um diretório que nenhum programa varre, indexa ou gera miniatura.
+This weakens nothing: the file was already in your home, with your permissions. Moving it
+there doesn't raise privilege — it **reduces exposure**, because it leaves the place where it could be opened
+by mistake and goes to a directory that no program scans, indexes or thumbnails.
 
-A quarentena do **sistema** continua sendo da varredura agendada, que roda como root.
+The **system** quarantine still belongs to the scheduled scan, which runs as root.
 
-A quarentena do usuário é **excluída** de toda varredura da home — a dela e a do extra
-`daily-scan`. Sem isso, o que já foi isolado seria reencontrado e movido de novo: a contagem no
-menu esvaziaria sozinha durante a noite, com os arquivos reaparecendo na quarentena de root.
+The user quarantine is **excluded** from every home scan — its own and the `daily-scan`
+extra's. Without that, what was already isolated would be found again and moved again: the count in the
+menu would empty itself overnight, with the files reappearing in root's quarantine.
 
-**Colisão de nome não sobrescreve.** O `clamdscan --move` acrescenta `.001`, `.002` — verificado
-com o arquivo de teste EICAR: dois arquivos de mesmo nome viraram `teste.txt` e `teste.txt.001`.
+**Name collisions don't overwrite.** `clamdscan --move` appends `.001`, `.002` — verified
+with the EICAR test file: two files with the same name became `teste.txt` and `teste.txt.001`.
 
-**Dois vigias não brigam pelo mesmo arquivo.** Cada um tem quarentena própria. Se algo infectado
-for copiado de um pendrive para Downloads, são dois arquivos, cada um na sua quarentena — o menu
-refletir isso é correto, não duplicação. Numa corrida real pelo mesmo caminho, quem mover primeiro
-ganha e o segundo registra `Can't access file`, que conta como ilegível e **não** como infecção.
+**Two watchers don't fight over the same file.** Each has its own quarantine. If something infected
+is copied from a USB stick to Downloads, those are two files, each in its own quarantine — the menu
+reflecting that is correct, not duplication. In a real race for the same path, whoever moves first
+wins and the second logs `Can't access file`, which counts as unreadable and **not** as an infection.
 
-Varredura lançada **fora** do programa — terminal, cron, outra ferramenta — também acende "em
-andamento", detectada por processo. Dessas não dá para ler o resultado, mas é melhor que afirmar
-calmaria enquanto o disco trabalha.
+A scan launched **outside** the program — terminal, cron, another tool — also lights up "in
+progress", detected by process. Its result can't be read, but that's better than claiming
+calm while the disk works.

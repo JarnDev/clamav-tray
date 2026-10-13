@@ -1,63 +1,65 @@
+**English** · [Português (Brasil)](README.pt-BR.md)
+
 # usb-scan
 
-Varre mídia removível assim que ela é montada.
+Scans removable media as soon as it's mounted.
 
-## Por que não usa `RUN+=` no udev
+## Why it doesn't use `RUN+=` in udev
 
-A documentação do udev é categórica:
+The udev documentation is categorical:
 
 > *Starting daemons or other long-running processes is not allowed; the forked
 > processes, detached or not, will be **unconditionally killed** after the event
 > handling has finished.*
 
-Uma varredura de pendrive dura mais que um evento do udev. Com `RUN+=`, ela é
-morta no meio — e em silêncio, que é o pior jeito de falhar num programa cuja
-função é avisar.
+A USB stick scan lasts longer than a udev event. With `RUN+=`, it's
+killed midway — and silently, which is the worst way to fail in a program whose
+job is to warn.
 
-A própria doc nomeia a saída: **uma unidade de serviço puxada pelo dispositivo**.
-É o que a regra faz, com `TAG+="systemd"` e `ENV{SYSTEMD_WANTS}`.
+The doc itself names the way out: **a service unit pulled in by the device**.
+That's what the rule does, with `TAG+="systemd"` and `ENV{SYSTEMD_WANTS}`.
 
-Ganho colateral: virando unidade, ela **aparece no `clamav-tray`** — que descobre
-por unidade e não enxerga processo solto.
+Side benefit: as a unit, it **shows up in `clamav-tray`** — which discovers
+by unit and can't see a loose process.
 
-## A armadilha do `%k`
+## The `%k` trap
 
-O udev entrega o **nome de kernel** da partição (`sdc1`), não o ponto de montagem.
-E dispara no evento `add`, que acontece **antes** de o automount terminar.
+udev hands over the partition's **kernel name** (`sdc1`), not the mount point.
+And it fires on the `add` event, which happens **before** the automount finishes.
 
-Um script que espere receber um diretório pronto recebe `sdc1` e aborta na
-terceira linha. Aqui quem resolve é o script, com `findmnt`, esperando até 30 s
-pela montagem.
+A script that expects to receive a ready directory gets `sdc1` and aborts on the
+third line. Here the script resolves it, with `findmnt`, waiting up to 30 s
+for the mount.
 
-Se não montar nesse prazo, sai com **0** — não é falha: pode ser partição de
-sistema, swap, ou o usuário simplesmente não abriu a mídia.
+If it doesn't mount within that time, it exits with **0** — it isn't a failure: it may be a system
+partition, swap, or the user simply didn't open the media.
 
-## Instalar
+## Install
 
 ```sh
-sudo ./install.sh <seu-usuario>
+sudo ./install.sh <your-user>
 ```
 
-O instalador **pergunta antes**, porque este extra é o único que age sozinho em
-resposta a hardware: plugar um HD externo de 2 TB dispara uma varredura longa que
-você não pediu.
+The installer **asks first**, because this extra is the only one that acts on its own in
+response to hardware: plugging in a 2 TB external drive triggers a long scan
+you didn't ask for.
 
-Para parar uma em curso:
+To stop one in progress:
 
 ```sh
 systemctl stop 'clamav-tray-usb@*'
 ```
 
-## `--multiscan`, diferente dos outros extras
+## `--multiscan`, unlike the other extras
 
-Aqui não há exclusão a aplicar, então dá para varrer o diretório direto — sem
-`--file-list` — e aproveitar as threads do `clamd`.
+There's no exclusion to apply here, so the directory can be scanned directly — without
+`--file-list` — taking advantage of `clamd`'s threads.
 
-A varredura da home usa `--file-list` porque as exclusões precisam ser aplicadas
-pelo `find`; o `clamdscan` não tem `--exclude-dir`. Este extra não paga esse
-custo.
+The home scan uses `--file-list` because the exclusions have to be applied
+by `find`; `clamdscan` has no `--exclude-dir`. This extra doesn't pay that
+cost.
 
-## Quarentena separada
+## Separate quarantine
 
-`/var/quarantine/clamav-usb`, distinta da varredura diária e do monitor de
-Downloads. Assim dá para saber por onde a ameaça entrou.
+`/var/quarantine/clamav-usb`, distinct from the daily scan and the Downloads
+monitor. That way you can tell where the threat came in.

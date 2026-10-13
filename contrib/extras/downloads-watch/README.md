@@ -1,28 +1,30 @@
+**English** · [Português (Brasil)](README.pt-BR.md)
+
 # downloads-watch
 
-Varre cada arquivo novo na pasta Downloads, no instante em que termina de baixar.
+Scans every new file in the Downloads folder, the moment it finishes downloading.
 
-## Instalar
+## Install
 
 ```sh
-sudo ./install.sh <seu-usuario> [pasta]
+sudo ./install.sh <your-user> [folder]
 ```
 
-Requer `inotify-tools`. O instalador verifica e avisa se faltar.
+Requires `inotify-tools`. The installer checks and warns if it's missing.
 
-## Decisões que valem saber
+## Decisions worth knowing
 
-**`close_write` e `moved_to`, não `create`.** Varrer em `create` pegaria o arquivo
-pela metade. `close_write` cobre o arquivo terminado; `moved_to` cobre o que o
-navegador renomeia de `.part`/`.crdownload` para o nome final.
+**`close_write` and `moved_to`, not `create`.** Scanning on `create` would catch the file
+halfway. `close_write` covers the finished file; `moved_to` covers what the
+browser renames from `.part`/`.crdownload` to the final name.
 
-**`Restart=always`, não `on-failure`.** O systemd considera `SIGTERM` uma parada
-**limpa**, então `on-failure` não traria o vigia de volta quando algo o matasse —
-exatamente o caso em que você não quer ficar sem vigia.
+**`Restart=always`, not `on-failure`.** systemd considers `SIGTERM` a **clean**
+stop, so `on-failure` wouldn't bring the watcher back when something killed it —
+exactly the case in which you don't want to be left without a watcher.
 
-**O `grep FOUND` lê só esta execução.** Lendo o log acumulado, todo arquivo
-seguinte seria reportado como infectado depois da primeira ameaça da vida. Esse
-bug existiu na versão original e levou tempo para ser notado.
+**The `grep FOUND` reads only this run.** Reading the accumulated log, every
+subsequent file would be reported as infected after the first threat ever. That
+bug existed in the original version and took a while to be noticed.
 
-**Quarentena separada** (`/var/quarantine/clamav-downloads`) da varredura diária.
-Assim dá para saber por onde a ameaça entrou.
+**Separate quarantine** (`/var/quarantine/clamav-downloads`) from the daily scan.
+That way you can tell where the threat came in.

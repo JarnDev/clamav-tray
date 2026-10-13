@@ -1,11 +1,13 @@
-# O que atravessa o dbusmenu — e o que não
+**English** · [Português (Brasil)](dbusmenu.pt-BR.md)
 
-Este documento existe porque cinco bugs deste projeto tiveram a mesma causa, e eu
-tratei cada um como problema separado antes de encontrá-la.
+# What crosses dbusmenu — and what doesn't
 
-## A causa
+This document exists because five bugs in this project had the same cause, and I
+treated each one as a separate problem before finding it.
 
-`libappindicator3` linka `libdbusmenu-gtk3`:
+## The cause
+
+`libappindicator3` links `libdbusmenu-gtk3`:
 
 ```
 $ ldd /usr/lib/x86_64-linux-gnu/libappindicator3.so.1 | grep dbusmenu
@@ -13,11 +15,11 @@ libdbusmenu-gtk3.so.4 => /lib/x86_64-linux-gnu/libdbusmenu-gtk3.so.4
 libdbusmenu-glib.so.4 => /lib/x86_64-linux-gnu/libdbusmenu-glib.so.4
 ```
 
-**O menu não é desenhado pelo GTK na máquina do usuário.** Ele é serializado por
-D-Bus e renderizado pelo *shell*. O programa é o servidor; quem desenha é outro
-processo, possivelmente com outro toolkit.
+**The menu is not drawn by GTK on the user's machine.** It is serialized over
+D-Bus and rendered by the *shell*. The program is the server; whoever draws it is
+another process, possibly with another toolkit.
 
-Só trafegam as propriedades que o protocolo define:
+Only the properties the protocol defines get through:
 
 ```
 label · enabled · visible · icon-name · icon-data
@@ -25,79 +27,81 @@ toggle-type · toggle-state · children-display
 shortcut · disposition · accessible-desc
 ```
 
-## O que NÃO atravessa
+## What does NOT cross
 
-Widget nenhum. Foram tentados e falharam, todos pelo mesmo motivo:
+No widget at all. These were tried and failed, all for the same reason:
 
-| Tentativa | Resultado |
+| Attempt | Result |
 |---|---|
-| `Gtk.Box` aninhada com título, barra e detalhe | linha inteira invisível |
-| `Gtk.Label` alinhado à direita dentro de uma caixa | invisível |
-| `Gtk.ProgressBar` dentro de caixa | invisível |
-| `Gtk.ProgressBar` como filha direta, insensível | invisível |
-| `Gtk.ProgressBar` como filha direta, sensível | invisível |
-| `Gtk.Image` como filho de `Gtk.MenuItem` | invisível |
+| Nested `Gtk.Box` with title, bar and detail | whole row invisible |
+| Right-aligned `Gtk.Label` inside a box | invisible |
+| `Gtk.ProgressBar` inside a box | invisible |
+| `Gtk.ProgressBar` as a direct child, insensitive | invisible |
+| `Gtk.ProgressBar` as a direct child, sensitive | invisible |
+| `Gtk.Image` as a child of `Gtk.MenuItem` | invisible |
 
-Não adianta tentar outro arranjo. A regra que sobra: **cada item é um
-`Gtk.Label`, e o que se vê é o texto dele.**
+Trying another arrangement doesn't help. The rule that remains: **each item is a
+`Gtk.Label`, and what you see is its text.**
 
-Por isso a barra de progresso é desenhada com caracteres, e não com
-`Gtk.ProgressBar`. Não é escolha estética.
+That's why the progress bar is drawn with characters, not with
+`Gtk.ProgressBar`. It isn't an aesthetic choice.
 
-## O que atravessa, e como
+## What crosses, and how
 
-**Ícone** — sim, mas pela propriedade, não pelo widget. A ponte lê a propriedade
-`image` de um **`Gtk.ImageMenuItem`** (`gtk_image_menu_item_get_type` aparece nos
-símbolos da `libdbusmenu-gtk3`) e traduz para `icon-name` do protocolo.
+**Icon** — yes, but through the property, not the widget. The bridge reads the
+`image` property of a **`Gtk.ImageMenuItem`** (`gtk_image_menu_item_get_type`
+shows up in the `libdbusmenu-gtk3` symbols) and translates it to the protocol's
+`icon-name`.
 
-`ImageMenuItem` é obsoleto no GTK 3 e emite aviso — mas é o único widget que a
-ponte reconhece, e o alvo aqui é o protocolo, não o GTK.
+`ImageMenuItem` is deprecated in GTK 3 and emits a warning — but it's the only
+widget the bridge recognizes, and the target here is the protocol, not GTK.
 
-**Submenu** — sim, via `children-display`. É a única forma de agrupar ações.
+**Submenu** — yes, via `children-display`. It's the only way to group actions.
 
-**Markup do Pango** — é interpretado **localmente** e só o texto resultante é
-enviado. Então `<b>` e `<span foreground>` não chegam do outro lado: negrito,
-cor e tamanho **não existem** neste menu.
+**Pango markup** — it's interpreted **locally** and only the resulting text is
+sent. So `<b>` and `<span foreground>` don't reach the other side: bold, color
+and size **don't exist** in this menu.
 
-Consequência prática: hierarquia visual sai de recuo, símbolo e separador. E cor
-de status vem de **emoji**, que são glifos coloridos pela fonte, não texto
-colorido pelo tema.
+Practical consequence: visual hierarchy comes from indentation, symbols and
+separators. And status color comes from **emoji**, which are glyphs colored by
+the font, not text colored by the theme.
 
-## Tooltip não existe
+## Tooltips don't exist
 
 ```
 $ strings libdbusmenu-glib.so.4 libdbusmenu-gtk3.so.4 | grep -ci tooltip
 0
 ```
 
-Não é limitação de implementação nem do GNOME: o protocolo não tem o conceito.
-Informação que se quereria no *hover* precisa estar no rótulo — é por isso que as
-seções acionáveis anunciam "CLIQUE PARA VARRER" no próprio título.
+It isn't an implementation limitation, nor GNOME's: the protocol has no such
+concept. Information you'd want on *hover* has to be in the label — that's why
+the actionable sections announce "CLICK TO SCAN" in the title itself.
 
-## `disposition` existe, mas é inalcançável daqui
+## `disposition` exists, but is unreachable from here
 
-O protocolo define `normal / informative / warning / alert`, o que seria destaque
-semântico sem depender de cor manual. Os símbolos existem na biblioteca:
+The protocol defines `normal / informative / warning / alert`, which would be
+semantic emphasis without relying on manual color. The symbols exist in the
+library:
 
 ```
 genericmenuitem_set_disposition
 genericmenuitem_get_disposition
 ```
 
-Mas são do lado **cliente** — usados quando a biblioteca *recebe* um menu e monta
-widgets. Nós somos o servidor: construímos um `GtkMenu` e a ponte converte. Não
-há API GTK de onde ela pudesse derivar `disposition`.
+But they're on the **client** side — used when the library *receives* a menu and
+builds widgets. We're the server: we build a `GtkMenu` and the bridge converts
+it. There's no GTK API from which it could derive `disposition`.
 
-Quem quiser usá-lo precisa falar dbusmenu direto, sem a ponte GTK. A migração
-para [`ksni`](https://crates.io/crates/ksni) descrita no [ROADMAP](../ROADMAP.md)
-poderá fazer isso.
+Whoever wants to use it has to speak dbusmenu directly, without the GTK bridge.
+The migration to [`ksni`](https://crates.io/crates/ksni) described in the
+[ROADMAP](../ROADMAP.md) could do that.
 
-## Por que isto está documentado
+## Why this is documented
 
-Cada um dos cinco bugs acima recebeu, na hora, uma explicação plausível e errada
-— negociação de largura, esmaecimento do insensível, tema escuro. As explicações
-eram razoáveis e nenhuma era a causa.
+Each of the five bugs above got, on the spot, a plausible and wrong explanation
+— width negotiation, insensitive dimming, dark theme. The explanations were
+reasonable and none was the cause.
 
-A evidência decisiva esteve visível o tempo todo e passou despercebida: **os
-ícones dos itens de ação também não apareciam**. Dois tipos de widget falhando
-ao mesmo tempo apontavam para uma fronteira, não para dois bugs.
+The decisive evidence was visible all along and went unnoticed: **the icons of
+the action items didn't show up either**. Two kinds of widget failing at the same
+time pointed to a boundary, not to two bugs.

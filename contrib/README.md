@@ -1,41 +1,43 @@
+**English** · [Português (Brasil)](README.pt-BR.md)
+
 # contrib
 
-O `clamav-tray` **observa** o que existe. Ele não instala unidade, não agenda
-varredura e não decide o que varrer — essa é a escolha de desenho que o mantém
-instalável sem root.
+`clamav-tray` **observes** what exists. It doesn't install units, doesn't schedule
+scans and doesn't decide what to scan — that's the design choice that keeps it
+installable without root.
 
-A consequência é honesta: numa máquina onde só se fez `apt install clamav-daemon`,
-metade do menu fica vazia. Nenhuma distro relevante entrega varredura agendada,
-monitor de pasta ou quarentena.
+The consequence is honest: on a machine where only `apt install clamav-daemon` was run,
+half of the menu stays empty. No relevant distro ships a scheduled scan, a
+folder monitor or a quarantine.
 
 | | Debian/Ubuntu | Fedora | Arch |
 |---|---|---|---|
-| daemon + freshclam | vem no pacote | vem | vem |
-| varredura agendada | **não vem** | **não vem** | **não vem** |
-| monitor de pasta | **não vem** | **não vem** | **não vem** |
-| quarentena | **não vem** | **não vem** | **não vem** |
+| daemon + freshclam | in the package | yes | yes |
+| scheduled scan | **not shipped** | **not shipped** | **not shipped** |
+| folder monitor | **not shipped** | **not shipped** | **not shipped** |
+| quarantine | **not shipped** | **not shipped** | **not shipped** |
 
-Os extras aqui preenchem isso. Cada um é **independente e opcional** — instale só
-o que quiser, ou nenhum, ou use como referência para escrever o seu.
+The extras here fill that in. Each one is **independent and optional** — install only
+what you want, or none, or use them as a reference to write your own.
 
 ## Extras
 
-| | O que faz |
+| | What it does |
 |---|---|
-| [`extras/daily-scan`](extras/daily-scan) | varredura da home: incremental diária e completa semanal, com exclusões e quarentena |
-| [`extras/downloads-watch`](extras/downloads-watch) | varre a pasta Downloads a cada arquivo novo |
-| [`extras/usb-scan`](extras/usb-scan) | varre mídia removível assim que é montada |
-| [`extras/quarantine-stats`](extras/quarantine-stats) | publica o resumo da quarentena de root para o tray ler |
+| [`extras/daily-scan`](extras/daily-scan) | home scan: daily incremental and weekly full, with exclusions and quarantine |
+| [`extras/downloads-watch`](extras/downloads-watch) | scans the Downloads folder on every new file |
+| [`extras/usb-scan`](extras/usb-scan) | scans removable media as soon as it's mounted |
+| [`extras/quarantine-stats`](extras/quarantine-stats) | publishes the root quarantine summary for the tray to read |
 
-## Regras que todo instalador aqui segue
+## Rules every installer here follows
 
-- **Nunca sobrescreve.** Se já existe unidade com o mesmo nome, ele para e diz.
-- **Prefixo `clamav-tray-`** em tudo, para não colidir com o que você já tenha.
-- **Diz como desinstalar** ao terminar.
-- **Nada de `curl | sudo bash`.** Você lê o arquivo e executa.
+- **Never overwrites.** If a unit with the same name already exists, it stops and says so.
+- **`clamav-tray-` prefix** on everything, so it doesn't collide with what you already have.
+- **Says how to uninstall** when it finishes.
+- **No `curl | sudo bash`.** You read the file and run it.
 
-## Por que não vem tudo junto no pacote
+## Why it doesn't all come together in the package
 
-Instalar unidade de sistema exige root e opina sobre o que varrer e quando.
-Um indicador de bandeja que pede root na instalação é outra categoria de programa
-— e passaria a competir com a configuração de quem já tem a sua.
+Installing a system unit requires root and takes a stance on what to scan and when.
+A tray indicator that asks for root at install time is a different category of program
+— and would end up competing with the configuration of whoever already has their own.

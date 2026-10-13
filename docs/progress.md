@@ -1,40 +1,42 @@
-# Barra de progresso
+**English** · [Português (Brasil)](progress.pt-BR.md)
 
-É **contagem**, não estimativa por relógio. Com `--file-list` o `clamdscan` imprime uma linha por
-arquivo, então:
+# Progress bar
+
+It's a **count**, not a clock-based estimate. With `--file-list`, `clamdscan` prints one line per
+file, so:
 
 ```
-progresso = linhas impressas / linhas da lista
+progress = printed lines / lines in the list
 ```
 
-Por isso a varredura sob demanda monta a própria lista antes de começar. Custo medido:
-**4.500.726 arquivos listados em 10 s** — irrelevante diante de uma varredura de horas. E de
-brinde vêm as exclusões (cache, `node_modules`, Steam, perfis de navegador): de 4,5 milhões de
-arquivos para 1,13 milhão.
+That's why the on-demand scan builds its own list before starting. Measured cost:
+**4,500,726 files listed in 10 s** — irrelevant next to a scan that takes hours. And the
+exclusions come as a bonus (cache, `node_modules`, Steam, browser profiles): from 4.5 million
+files down to 1.13 million.
 
-Duas consequências que não são óbvias:
+Two consequences that aren't obvious:
 
-- **`-i` some quando há lista.** `-i` (`--infected`) imprime só os infectados, que é o que se quer
-  normalmente — e é o que torna o progresso incontável. Com lista, a saída passa a ter uma linha
-  por arquivo (~70 MB para 1,1 milhão). Fica em `tmpfs`, some no logout, e é lida uma vez, de
-  forma incremental: só os bytes novos a cada atualização.
-- **Não há previsão de término.** A velocidade varia demais com o tamanho dos arquivos —
-  extrapolar minutos de amostra dá números sem sentido. A porcentagem é honesta; um "faltam 3h"
-  não seria.
+- **`-i` goes away when there's a list.** `-i` (`--infected`) prints only the infected files, which is
+  what you normally want — and it's what makes progress uncountable. With a list, the output has one line
+  per file (~70 MB for 1.1 million). It lives in `tmpfs`, disappears at logout, and is read once,
+  incrementally: only the new bytes on each refresh.
+- **There's no completion estimate.** Speed varies too much with file size —
+  extrapolating from minutes of sample gives meaningless numbers. The percentage is honest; a "3h left"
+  wouldn't be.
 
-### A varredura agendada pulsa, não preenche
+### The scheduled scan pulses, it doesn't fill
 
-Ela roda como **root** e manda a saída para um arquivo temporário de nome aleatório. Espiar pelo
-`/proc/<pid>/fd/1` dela não funciona — `Permission denied`, verificado. Um indicador de usuário
-não vê dentro de um processo de root, e essa fronteira está certa.
+It runs as **root** and sends its output to a temporary file with a random name. Peeking through its
+`/proc/<pid>/fd/1` doesn't work — `Permission denied`, verified. A user indicator can't see inside a
+root process, and that boundary is right.
 
-Existe uma **convenção** para quem quiser: se houver um `scan.progress` legível ao lado do log,
-com `feitos/total` numa linha, o tray usa.
+There's a **convention** for whoever wants it: if there's a readable `scan.progress` next to the log,
+with `done/total` on one line, the tray uses it.
 
 ```
 /var/log/clamav/scan.progress     412391/1099137
 ```
 
-Mas há um custo honesto: para contar, o script agendado também precisaria abrir mão do `-i`. Sem
-isso não há o que contar. Enquanto ninguém publicar o contador, a barra da agendada **pulsa** — diz
-"está viva" sem afirmar quanto falta.
+But there's an honest cost: to count, the scheduled script would also have to give up `-i`. Without
+that there's nothing to count. Until someone publishes the counter, the scheduled scan's bar **pulses** —
+it says "it's alive" without claiming how much is left.

@@ -1,27 +1,29 @@
+**English** · [Português (Brasil)](json.pt-BR.md)
+
 # `clamav-tray --dump --json`
 
-O que o tray enxerga, como dado. Não precisa de tela nem de PyGObject: serve para
-script, Glance, Conky, `jq`, monitoramento.
+What the tray sees, as data. It needs neither a display nor PyGObject: it's for
+scripts, Glance, Conky, `jq`, monitoring.
 
 ```sh
 clamav-tray --dump --json | jq -r .status          # ok | busy | warn | threat
 clamav-tray --dump --json | jq '.scan.infected'
 ```
 
-## Estabilidade
+## Stability
 
-É um **contrato**. O campo `schema` sobe quando um campo muda de sentido, muda de
-tipo ou some. Campo **novo** não sobe o `schema` — quem lê deve ignorar o que não
-conhece.
+It's a **contract**. The `schema` field goes up when a field changes meaning, changes
+type or disappears. A **new** field doesn't bump `schema` — readers should ignore what they
+don't know.
 
-- Ausência é `null`, nunca campo omitido.
-- Horários em ISO 8601 **com fuso** (`2026-10-14T03:02:45-03:00`).
-- Os testes em `tests/test_report.py` falham se um nome ou tipo mudar.
+- Absence is `null`, never an omitted field.
+- Timestamps in ISO 8601 **with time zone** (`2026-10-14T03:02:45-03:00`).
+- The tests in `tests/test_report.py` fail if a name or type changes.
 
-O futuro `clamav-status` em Rust (ver [ROADMAP](../ROADMAP.md)) vai produzir esta
-mesma saída.
+The future `clamav-status` in Rust (see the [ROADMAP](../ROADMAP.md)) will produce this
+same output.
 
-## Exemplo
+## Example
 
 ```json
 {
@@ -66,46 +68,46 @@ mesma saída.
 }
 ```
 
-## Campos
+## Fields
 
-**Raiz**
+**Root**
 
-| campo | tipo | |
+| field | type | |
 |---|---|---|
-| `schema` | int | versão deste formato |
-| `version` | string | versão do clamav-tray que gerou |
-| `status` | `"ok"` \| `"busy"` \| `"warn"` \| `"threat"` | a mesma precedência do ícone: ameaça > varrendo > serviço caído > ok. **Nenhuma unidade encontrada é `warn`**, não `ok` |
+| `schema` | int | version of this format |
+| `version` | string | version of clamav-tray that produced it |
+| `status` | `"ok"` \| `"busy"` \| `"warn"` \| `"threat"` | the same precedence as the icon: threat > scanning > service down > ok. **No unit found is `warn`**, not `ok` |
 
-`status` **não** inclui mídia removível pendente: "pendente" depende do que o tray
-já varreu na sessão dele, que fica na memória do processo, não no sistema.
+`status` does **not** include pending removable media: "pending" depends on what the tray
+has already scanned in its session, which lives in the process's memory, not in the system.
 
-**`units[]`** — ordenadas por `id`
+**`units[]`** — sorted by `id`
 
-| campo | tipo | |
+| field | type | |
 |---|---|---|
-| `id` | string | nome da unidade systemd |
-| `label` | string | rótulo exibido no menu |
-| `kind` | `"daemon"` \| `"job"` \| `"timer"` | pelo `Type=` da unidade: `job` é o que roda e termina |
-| `user_scope` | bool | unidade do `systemctl --user` (a varredura sob demanda vive lá) |
-| `active_state`, `sub_state`, `result` | string | como o systemd reporta |
-| `healthy` | bool | job que achou vírus (saída 1) é saudável: achar é o trabalho dele |
-| `running` | bool | job em execução agora |
+| `id` | string | systemd unit name |
+| `label` | string | label shown in the menu |
+| `kind` | `"daemon"` \| `"job"` \| `"timer"` | from the unit's `Type=`: `job` is what runs and finishes |
+| `user_scope` | bool | unit of `systemctl --user` (the on-demand scan lives there) |
+| `active_state`, `sub_state`, `result` | string | as systemd reports them |
+| `healthy` | bool | a job that found a virus (exit 1) is healthy: finding is its job |
+| `running` | bool | job running right now |
 | `exit_status` | int \| null | |
 | `started_at`, `finished_at`, `next_run` | string \| null | ISO 8601 |
 
-**`scan`** — a última varredura, da unidade que o tray escolhe (rodando agora >
-terminou por último)
+**`scan`** — the last scan, from the unit the tray picks (running now >
+finished last)
 
-| campo | tipo | |
+| field | type | |
 |---|---|---|
-| `unit` | string \| null | de onde veio o resultado |
+| `unit` | string \| null | where the result came from |
 | `running` | bool | |
-| `outside_systemd` | bool | há `clamscan`/`clamdscan` rodando fora de qualquer unidade |
-| `verdict` | `"clean"` \| `"infected"` \| `"error"` \| `"unknown"` | lido do `SCAN SUMMARY`, nunca do código de saída. `unknown` = não havia resumo — não é o mesmo que limpo |
+| `outside_systemd` | bool | there's a `clamscan`/`clamdscan` running outside any unit |
+| `verdict` | `"clean"` \| `"infected"` \| `"error"` \| `"unknown"` | read from the `SCAN SUMMARY`, never from the exit code. `unknown` = there was no summary — not the same as clean |
 | `infected`, `unreadable` | int | |
-| `scanned` | int \| null | o `clamdscan` nem sempre imprime |
+| `scanned` | int \| null | `clamdscan` doesn't always print it |
 | `duration_secs` | int \| null | |
 | `finished_at` | string \| null | |
 
 **`paths`** — `socket`, `scan_log`, `daemon_log`, `quarantine`, `user_quarantine`:
-string ou `null`. `daemon_log` é o log do clamd, **não** o da varredura.
+string or `null`. `daemon_log` is clamd's log, **not** the scan's.

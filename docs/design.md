@@ -1,69 +1,73 @@
-# Decisões de desenho
+**English** · [Português (Brasil)](design.pt-BR.md)
 
-As explicações longas que o README carregava até a v0.1. Cada uma existe
-porque uma alternativa razoável foi tentada e falhou, ou porque a medição
-contrariou a intuição.
+# Design decisions
 
-## O que funciona numa instalação limpa
+The long explanations the README carried up to v0.1. Each one exists because a
+reasonable alternative was tried and failed, or because measurement contradicted
+intuition.
 
-O programa **observa** o que existe. Ele não instala unidade, não agenda varredura
-e não decide o que varrer — é essa escolha que o mantém instalável sem root.
+## What works on a clean install
 
-Consequência honesta, medida num Ubuntu com `clamav-daemon` e `clamav-freshclam`:
+The program **observes** what exists. It doesn't install units, doesn't schedule
+scans and doesn't decide what to scan — that choice is what keeps it installable
+without root.
 
-| | De fábrica |
+Honest consequence, measured on Ubuntu with `clamav-daemon` and `clamav-freshclam`:
+
+| | Out of the box |
 |---|---|
-| ClamAV Daemon, Freshclam, On-Access | **sim**, vêm nos pacotes |
-| Varrer minha home agora | **sim**, precisa só do `clamd` no ar |
-| Quarentena do usuário | **sim**, criada sob demanda |
-| Barra de progresso | **sim**, é da varredura sob demanda |
-| Varredura agendada, "Próxima", "Última" | **não** — nenhuma distro entrega |
-| Monitor de pasta | **não** |
-| Quarentena do sistema | **não** — nasce do `--move=` de quem agendou |
+| ClamAV Daemon, Freshclam, On-Access | **yes**, they come in the packages |
+| Scan my home now | **yes**, only needs `clamd` running |
+| User quarantine | **yes**, created on demand |
+| Progress bar | **yes**, it belongs to the on-demand scan |
+| Scheduled scan, "Next", "Last" | **no** — no distro ships it |
+| Folder monitor | **no** |
+| System quarantine | **no** — it comes from the `--move=` of whoever scheduled the scan |
 
-Metade de cima funciona; a metade da varredura fica vazia. Não é bug: a distro não
-agenda varredura, e o programa não deve inventar uma.
+The top half works; the scan half stays empty. It isn't a bug: the distro doesn't
+schedule scans, and the program shouldn't invent one.
 
-Para preencher, há extras **opcionais e independentes** em [`contrib/extras/`](../contrib/extras),
-cada um com instalador próprio — varredura diária, monitor de Downloads e
-publicação das estatísticas de quarentena. Instale só o que quiser, ou use como
-referência para escrever o seu.
+To fill it in, there are **optional and independent** extras in [`contrib/extras/`](../contrib/extras),
+each with its own installer — daily scan, Downloads monitor and publishing of
+quarantine statistics. Install only what you want, or use them as a reference to
+write your own.
 
-## Idioma
+## Language
 
-**Inglês é o padrão.** As strings no código são as inglesas, e traduzir é opcional
-por construção: uma chave sem tradução aparece em inglês em vez de quebrar.
+**English is the default.** The strings in the code are the English ones, and
+translating is optional by construction: a key without a translation shows up in
+English instead of breaking.
 
 ```toml
 [general]
-language = "pt_BR"   # ou "auto" para seguir o locale do sistema
+language = "pt_BR"   # or "auto" to follow the system locale
 ```
 
-Traduções vivem em `clamav_tray/i18n.py`, num dicionário. Não usa gettext de propósito:
-compilar `.po` em `.mo` acrescentaria um passo de build a um projeto que hoje instala com
-`pipx install` e nada mais. Para contribuir com um idioma, copie o bloco `pt_BR` e traduza —
-sem instalar ferramenta nenhuma. As chaves já são as frases em inglês, então migrar para
-gettext depois é mecânico.
+Translations live in `clamav_tray/i18n.py`, in a dictionary. It doesn't use gettext on purpose:
+compiling `.po` into `.mo` would add a build step to a project that today installs with
+`pipx install` and nothing else. To contribute a language, copy the `pt_BR` block and translate it —
+without installing any tool. The keys are already the English sentences, so migrating to
+gettext later is mechanical.
 
-## Configuração
+## Configuration
 
-Há um item **Settings** no menu: ele cria o arquivo comentado se não existir e abre no seu
-editor. O arquivo é **relido sozinho ao salvar** — sem reiniciar.
+There's a **Settings** item in the menu: it creates the commented file if it doesn't exist and opens
+it in your editor. The file is **reloaded on its own when saved** — no restart.
 
-Não há diálogo de preferências em GTK de propósito: seria mais código que o resto do programa
-junto, para uma edição que acontece raramente.
+There's no GTK preferences dialog on purpose: it would be more code than the rest of the program
+combined, for an edit that rarely happens.
 
-Nenhuma configuração é obrigatória. O programa descobre sozinho:
+No configuration is required. The program discovers on its own:
 
-- **unidades** — pelo glob `clam*` no systemd, o que cobre tanto `clamav-daemon.service`
-  (Debian, Ubuntu, Arch) quanto `clamd@scan.service` (Fedora, que usa unidade *templated*)
-- **caminhos** — perguntando ao `clamconf`, que vem do próprio ClamAV e não do empacotador
+- **units** — through the `clam*` glob in systemd, which covers both `clamav-daemon.service`
+  (Debian, Ubuntu, Arch) and `clamd@scan.service` (Fedora, which uses a *templated* unit)
+- **paths** — by asking `clamconf`, which comes from ClamAV itself and not from the packager
 
-Para ajustar rótulos, acrescentar unidades ou sobrescrever caminhos, veja
+To adjust labels, add units or override paths, see
 `clamav-tray.example.toml`.
 
-## Permissões
+## Permissions
 
-Ler estado de unidade não exige privilégio. Ler o **histórico** do journal exige estar em `adm`
-ou `systemd-journal`, dependendo da distro. Sem isso o programa continua funcionando: mostra o
-estado atual e omite o histórico, em vez de quebrar.
+Reading unit state requires no privilege. Reading the journal **history** requires being in `adm`
+or `systemd-journal`, depending on the distro. Without that the program keeps working: it shows the
+current state and omits the history, instead of breaking.

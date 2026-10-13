@@ -1,39 +1,41 @@
-# Mídia removível
+**English** · [Português (Brasil)](removable-media.pt-BR.md)
 
-Ao plugar um pendrive, ele **aparece no menu** e o ícone da bandeja muda — mas
-nada é varrido até você clicar.
+# Removable media
+
+When you plug in a USB stick, it **shows up in the menu** and the tray icon changes — but
+nothing is scanned until you click.
 
 ```
-DISPOSITIVOS
-🟡  KINGSTON   14,9 GB · não varrido
+DEVICES
+🟡  KINGSTON   14,9 GB · not scanned
      /media/user/KINGSTON
 ```
 
-Clicar varre. Enquanto varre, valem a barra de progresso e o botão "Parar
-varredura" — a mesma máquina da varredura da home.
+Clicking scans. While it scans, the progress bar and the "Stop scan" button
+apply — the same machinery as the home scan.
 
-### Por que não varre sozinho
+### Why it doesn't scan on its own
 
-Varrer automaticamente ao plugar exige regra de udev, unidade de sistema e root — e
-age sem perguntar. Plugar um HD externo de 2 TB dispararia uma varredura longa que
-ninguém pediu, e interrompê-la exigiria privilégio.
+Scanning automatically on plug-in requires a udev rule, a system unit and root — and
+it acts without asking. Plugging in a 2 TB external drive would trigger a long scan
+nobody asked for, and stopping it would require privilege.
 
-Como a varredura roda **como você**, nada disso é necessário: o `udisks2` monta a
-mídia com o seu uid, então `clamdscan --fdpass` a lê sem root.
+Since the scan runs **as you**, none of that is needed: `udisks2` mounts the
+media with your uid, so `clamdscan --fdpass` reads it without root.
 
-Quem quiser o comportamento automático instala
+Whoever wants the automatic behavior installs
 [`contrib/extras/usb-scan`](../contrib/extras/usb-scan).
 
-### Como a detecção funciona
+### How detection works
 
-Duas leituras de arquivo por atualização, nenhum subprocesso:
+Two file reads per refresh, no subprocess:
 
-1. `/proc/mounts` — o que está montado sob `/media/$USER` ou `/run/media/$USER`
-2. `/sys/block/<disco>/removable` — se o hardware é removível, segundo o kernel
+1. `/proc/mounts` — what's mounted under `/media/$USER` or `/run/media/$USER`
+2. `/sys/block/<disk>/removable` — whether the hardware is removable, according to the kernel
 
-O filtro por caminho sozinho seria proxy: é onde o `udisks2` monta, mas alguém
-pode montar disco fixo ali. Por isso o cruzamento com o dado do kernel.
+The path filter alone would be a proxy: it's where `udisks2` mounts, but someone
+can mount a fixed disk there. Hence the cross-check with the kernel's data.
 
-**Limite conhecido:** mídia que você nunca abriu não está montada, e o que não está
-montado não pode ser varrido por um processo de usuário. Esse caso só o extra com
-root cobre.
+**Known limit:** media you've never opened isn't mounted, and what isn't
+mounted can't be scanned by a user process. Only the extra with
+root covers that case.
