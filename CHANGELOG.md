@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não lançado]
 
+## [0.3.0] — 2026-10-13
+
 ### Adicionado
 
 - `scripts/release.sh X.Y.Z`: lança uma versão em um comando, com `--dry-run`.
