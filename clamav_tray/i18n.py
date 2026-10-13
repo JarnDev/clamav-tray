@@ -124,17 +124,27 @@ CATALOGS: dict[str, dict[str, str]] = {
 }
 
 _active: dict[str, str] = {}
+_code: str = DEFAULT
+
+# (milhar, decimal). Numero nao e frase: o catalogo traduz texto, e isto formata
+# quantidade. Antes cada modulo fazia replace(".", ",") por conta propria, e a
+# interface em ingles mostrava "14,9 GB" e "1.131.791 arquivos".
+SEPARATORS: dict[str, tuple[str, str]] = {
+    DEFAULT: (",", "."),
+    "pt_BR": (".", ","),
+}
 
 
 def set_language(code: str | None) -> str:
     """Define o idioma. `auto` segue o ambiente; qualquer outro valor desconhecido
     cai em ingles, em vez de falhar."""
-    global _active
+    global _active, _code
     if code == "auto":
         code = _from_environment()
     code = code or DEFAULT
     _active = CATALOGS.get(code, {})
-    return code if code in CATALOGS or code == DEFAULT else DEFAULT
+    _code = code if code in CATALOGS or code == DEFAULT else DEFAULT
+    return _code
 
 
 def _from_environment() -> str:
@@ -156,6 +166,15 @@ def _(text: str, **kwargs) -> str:
     """Traduz e interpola. Chave ausente devolve o ingles."""
     out = _active.get(text, text)
     return out.format(**kwargs) if kwargs else out
+
+
+def number(value: float, decimals: int = 0) -> str:
+    """1131791 -> "1,131,791" (en) / "1.131.791" (pt_BR); 14.9 -> "14.9" / "14,9"."""
+    milhar, decimal = SEPARATORS.get(_code, SEPARATORS[DEFAULT])
+    txt = f"{value:,.{decimals}f}"
+    # Troca em dois passos com marcador: trocar "," por "." direto e depois "."
+    # por "," desfaria a primeira troca.
+    return txt.replace(",", "\0").replace(".", decimal).replace("\0", milhar)
 
 
 def available() -> list[str]:

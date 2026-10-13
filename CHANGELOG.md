@@ -16,6 +16,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Issue and pull request templates are in English (Portuguese is welcome in the
+  text). They stay out of the bilingual pairing: GitHub lists each template as its
+  own option.
 - The CHANGELOG is now English-only, past entries included. `scripts/release.sh`
   looks for `## [Unreleased]` instead of `## [Não lançado]`.
 - README status and CONTRIBUTING brought up to date: 0.3 on PyPI, Fedora and
@@ -23,6 +26,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Numbers ignored the interface language.** Five places replaced "." with ","
+  on their own, so the English interface showed "14,9 GB" and "1.131.791" files.
+  They now go through `i18n.number()`: "14.9 GB" / "1,131,791" in English,
+  "14,9 GB" / "1.131.791" in Portuguese.
 - `clamav_tray.data` is listed in `packages`: setuptools warned at build time
   that relying on it being picked up implicitly will stop working.
 

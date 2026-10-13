@@ -25,6 +25,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from .i18n import number
+
 MOUNT_PREFIXES = ("/media/", "/run/media/")
 
 # sdc1 -> sdc ; nvme0n1p3 -> nvme0n1 ; mmcblk0p1 -> mmcblk0
@@ -108,5 +110,7 @@ def human_size(n: int | None) -> str:
         return ""
     for unit, div in (("TB", 1024 ** 4), ("GB", 1024 ** 3), ("MB", 1024 ** 2)):
         if n >= div:
-            return f"{n / div:.1f} {unit}".replace(".0 ", " ").replace(".", ",")
+            v = n / div
+            # "15 GB" e nao "15,0 GB": casa decimal zerada e ruido.
+            return f"{number(v) if round(v, 1) == round(v) else number(v, 1)} {unit}"
     return f"{n // 1024} KB"

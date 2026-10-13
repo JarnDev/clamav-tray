@@ -7,7 +7,7 @@ nothing is scanned until you click.
 
 ```
 DEVICES
-🟡  KINGSTON   14,9 GB · not scanned
+🟡  KINGSTON   14.9 GB · not scanned
      /media/user/KINGSTON
 ```
 

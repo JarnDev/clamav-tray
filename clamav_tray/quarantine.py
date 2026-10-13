@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .i18n import number
+
 STATS_NAME = "quarantine.stats"
 STATS_DIRS = (
     Path("/var/lib/clamav-tray"),
@@ -91,8 +93,8 @@ def human_bytes(n: int) -> str:
     if n < 1024 ** 2:
         return f"{n // 1024} KB"
     if n < 1024 ** 3:
-        return f"{n / 1024 ** 2:.1f} MB".replace(".", ",")
-    return f"{n / 1024 ** 3:.1f} GB".replace(".", ",")
+        return f"{number(n / 1024 ** 2, 1)} MB"
+    return f"{number(n / 1024 ** 3, 1)} GB"
 
 
 def _int(value: str | None) -> int:

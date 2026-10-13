@@ -272,7 +272,7 @@ class Tray:
                 pr = progress.Progress(done=done, total=total)
 
         if pr and pr.fraction is not None:
-            return pr.fraction, f"{base} · {pr.done:,}/{pr.total:,}".replace(",", ".")
+            return pr.fraction, f"{base} · {i18n.number(pr.done)}/{i18n.number(pr.total)}"
         return None, base
 
     def _indicator_label(self, running, loose_scan, result, pending=(), broken=()) -> str:
@@ -633,8 +633,8 @@ class Tray:
 
 
 def _thousands(n: int) -> str:
-    """1131791 -> 1.131.791. Numero grande sem separador vira borrao."""
-    return f"{n:,}".replace(",", ".")
+    """1131791 -> 1,131,791 / 1.131.791. Numero grande sem separador vira borrao."""
+    return i18n.number(n)
 
 
 def _current_user() -> str:
