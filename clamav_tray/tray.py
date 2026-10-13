@@ -57,6 +57,17 @@ _FALLBACK_SCAN_SECS = 4 * 3600
 
 class Tray:
     def __init__(self, cfg: Config):
+        # Sem tela, o GTK nao falha: ABORTA (Gtk-ERROR e core dump) no primeiro
+        # widget. init_check devolve False em vez disso — testado com DISPLAY
+        # ausente e com DISPLAY apontando para tela que nao existe. Conferir a
+        # variavel de ambiente so cobriria o primeiro caso.
+        if not Gtk.init_check()[0]:
+            raise RuntimeError(
+                "sem conexao com a tela (DISPLAY/WAYLAND_DISPLAY). O indicador precisa "
+                "de uma sessao grafica; para diagnostico sem GUI use --dump. Como "
+                "servico de usuario, a sessao precisa exportar o ambiente: "
+                "systemctl --user import-environment DISPLAY WAYLAND_DISPLAY"
+            )
         if _INDICATOR is None:
             raise RuntimeError(
                 "nenhum AppIndicator encontrado — instale gir1.2-appindicator3-0.1 "

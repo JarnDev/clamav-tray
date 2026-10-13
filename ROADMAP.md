@@ -40,7 +40,7 @@ de qualquer recurso novo.
 - [ ] **Autostart sem clonar.** O `install-autostart.sh` não vai no pacote; quem instalou por
       pipx precisa do repositório só para isso. Caminho provável: `clamav-tray --install-autostart`,
       com a mesma conferência de `is-active` do script.
-- [ ] **Sem tela, mensagem em vez de core dump.** Sem `DISPLAY`/`WAYLAND_DISPLAY`, o GTK aborta
+- [x] **Sem tela, mensagem em vez de core dump.** Sem `DISPLAY`/`WAYLAND_DISPLAY`, o GTK aborta
       (`Gtk-ERROR`, processo derrubado). Conferir antes de importar o GTK.
 - [ ] **`--dump --json`**, saída estável para script e para o Glance/Conky. É também o contrato
       que o `clamav-status` da Trilha 2 vai cumprir — escrevê-lo em Python primeiro fixa o formato.

@@ -12,6 +12,14 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   dois arquivos, fecha o CHANGELOG, faz commit e tag assinados e envia por SSH.
   O ambiente `pypi` agora exige aprovação manual e só aceita tags `v*`.
 
+### Corrigido
+
+- **Sem tela, o programa abortava com core dump.** O GTK não falha sem
+  `DISPLAY`: aborta (`Gtk-ERROR`) no primeiro widget. Agora `Gtk.init_check()`
+  é conferido antes, e o programa diz o que falta e sai com código 1. Cobre
+  também `DISPLAY` apontando para uma tela que não existe — conferir só a
+  variável de ambiente não pegaria esse caso.
+
 ## [0.2.0] — 2026-10-13
 
 ### Adicionado
