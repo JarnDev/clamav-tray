@@ -31,3 +31,8 @@ Issues = "https://github.com/JarnDev/clamav-tray/issues"
 
 [tool.setuptools]
 packages = ["clamav_tray"]
+
+# Os modelos de autostart vao DENTRO do pacote: quem instala pelo PyPI nao tem o
+# diretorio packaging/ do repositorio, e precisava clonar so para isso.
+[tool.setuptools.package-data]
+clamav_tray = ["data/*"]

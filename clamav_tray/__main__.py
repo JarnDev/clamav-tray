@@ -5,6 +5,11 @@ import sys
 
 
 def main() -> int:
+    # Antes de tudo: nao depende de config, de tela nem de PyGObject.
+    from . import autostart
+    if (rc := autostart.main(sys.argv[1:])) is not None:
+        return rc
+
     from . import config
 
     cfg = config.load()

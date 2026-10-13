@@ -37,9 +37,9 @@ promessa: item sobe ou desce conforme o uso real mostrar.
 Quem instala pelo PyPI tem uma experiência pior que quem clona. Fechar essa diferença vem antes
 de qualquer recurso novo.
 
-- [ ] **Autostart sem clonar.** O `install-autostart.sh` não vai no pacote; quem instalou por
-      pipx precisa do repositório só para isso. Caminho provável: `clamav-tray --install-autostart`,
-      com a mesma conferência de `is-active` do script.
+- [x] **Autostart sem clonar.** `clamav-tray --install-autostart`, com os modelos dentro do
+      pacote e a mesma conferência de `is-active` do script — e `--show-autostart` para
+      inspecionar destino e conteúdo antes de permitir.
 - [x] **Sem tela, mensagem em vez de core dump.** Sem `DISPLAY`/`WAYLAND_DISPLAY`, o GTK aborta
       (`Gtk-ERROR`, processo derrubado). Conferir antes de importar o GTK.
 - [x] **`--dump --json`**, saída estável para script e para o Glance/Conky. É também o contrato

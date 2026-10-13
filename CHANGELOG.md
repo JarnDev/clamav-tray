@@ -14,6 +14,21 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - **`clamav-tray --dump --json`**: o estado que o tray enxerga, como dado, para
   script, Glance, Conky ou `jq`. Formato versionado (`schema`), documentado em
   `docs/json.md` e travado por `tests/test_report.py`. Não precisa de tela.
+- **Autostart sem clonar o repositório**: `clamav-tray --install-autostart
+  [--xdg]` e `--uninstall-autostart`. Os modelos da unidade e do `.desktop`
+  agora vão dentro do pacote (`clamav_tray/data/`).
+- **`clamav-tray --show-autostart [--xdg]`: inspecionar antes de permitir.**
+  Mostra destino, comando, o arquivo inteiro e os `systemctl` que viriam — ou a
+  diferença, se já houver arquivo — sem gravar nada. O instalador mostra o mesmo
+  e só grava com confirmação; fora de terminal, só com `--yes`.
+
+### Alterado
+
+- `packaging/install-autostart.sh` passa a só encaminhar para
+  `clamav-tray --install-autostart`, com os mesmos argumentos. Agora pergunta
+  antes de gravar, e sem terminal recusa em vez de gravar direto.
+- O autostart grava `~/.local/bin/clamav-tray` (o link do pipx) em vez do
+  caminho dentro do venv, que muda se o pipx recriar o ambiente.
 
 ### Corrigido
 

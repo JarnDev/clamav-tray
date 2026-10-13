@@ -54,21 +54,46 @@ Do código-fonte: clone e `pipx install --system-site-packages .`
 
 ### Subir sozinho no login
 
+Um programa que se registra para rodar a cada login pede confiança. Por isso o
+primeiro passo é **olhar**, não instalar:
+
 ```sh
-./packaging/install-autostart.sh          # serviço de usuário, supervisionado
-./packaging/install-autostart.sh xdg      # autostart XDG, sem supervisão
+clamav-tray --show-autostart          # mostra destino, comando e conteúdo exato — não grava nada
+clamav-tray --show-autostart --xdg    # o mesmo, para o autostart XDG
 ```
 
-Nenhum dos dois precisa de root. Prefira o primeiro: se o processo morrer, ele
-volta, e o journal guarda o motivo. O autostart XDG dispara e esquece — foi assim
-que o indicador que deu origem a este projeto sumiu da bandeja sem deixar rastro.
+Ele mostra onde o arquivo seria gravado, que comando rodaria a cada login, o
+arquivo inteiro e os comandos `systemctl --user` que viriam depois. Se já existe
+um arquivo no destino — seu, de outra versão, ou editado à mão —, mostra a
+**diferença** linha a linha em vez do arquivo inteiro.
 
-O instalador e os [extras](https://github.com/JarnDev/clamav-tray/tree/main/contrib/extras) ficam no repositório, não no pacote do PyPI: quem
-instalou por pipx precisa clonar (ou baixar só o `packaging/`) para usá-los.
+Conferido, instale:
 
-O instalador funciona **antes** de `pipx install`: sem o `clamav-tray` no PATH,
-ele aponta a unidade para o código no diretório atual. E confere se o serviço
-subiu — não afirma "ativado" sem olhar.
+```sh
+clamav-tray --install-autostart           # serviço de usuário, supervisionado (recomendado)
+clamav-tray --install-autostart --xdg     # autostart XDG, sem supervisão
+clamav-tray --uninstall-autostart         # desfaz (com --xdg, o XDG)
+```
+
+O `--install-autostart` mostra **de novo** o mesmo conteúdo e só grava depois de
+você responder `s`. Fora de um terminal ele recusa, a menos que receba `--yes` —
+assim nenhum script grava autostart sem que alguém tenha decidido isso. A remoção
+segue a mesma regra.
+
+Nada disso precisa de root: o serviço vai para `~/.config/systemd/user/` e o XDG
+para `~/.config/autostart/`. Prefira o serviço: se o processo morrer, ele volta, e
+o journal guarda o motivo. O autostart XDG dispara e esquece — foi assim que o
+indicador que deu origem a este projeto sumiu da bandeja sem deixar rastro.
+
+Depois de gravar, o instalador **confere** que o serviço subiu, em vez de afirmar
+"ativado" sem olhar. Rodando do código-fonte (sem `clamav-tray` no PATH), ele
+aponta a unidade para `python3 -m clamav_tray` neste diretório — e o
+`--show-autostart` diz isso antes. Quem clonou pode usar também
+`./packaging/install-autostart.sh [xdg]`, que encaminha para o mesmo comando.
+
+Os [extras](https://github.com/JarnDev/clamav-tray/tree/main/contrib/extras)
+(varredura agendada, USB, Downloads) continuam só no repositório: instalam unidade
+de **sistema** e pedem root, o que o pacote não faz por decisão.
 
 ### Bandeja no seu desktop
 
