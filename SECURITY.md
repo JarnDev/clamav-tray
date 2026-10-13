@@ -1,55 +1,58 @@
-# Política de segurança
+**English** · [Português (Brasil)](SECURITY.pt-BR.md)
 
-## Reportar uma vulnerabilidade
+# Security policy
 
-Abra um [security advisory](https://github.com/JarnDev/clamav-tray/security/advisories/new)
-em vez de uma issue pública.
+## Reporting a vulnerability
 
-Se preferir e-mail, use o endereço do autor no histórico de commits. Respondo
-quando puder — é um projeto de uma pessoa, sem SLA.
+Open a [security advisory](https://github.com/JarnDev/clamav-tray/security/advisories/new)
+instead of a public issue.
 
-## Superfície de ataque, honestamente
+If you prefer email, use the author's address from the commit history. I reply
+when I can — it is a one-person project, with no SLA.
 
-O programa roda **como usuário comum**, sem privilégio. Isso limita o estrago,
-mas não a zero. O que ele faz que merece atenção:
+## Attack surface, honestly
 
-**Executa `systemctl` e `journalctl`** para ler estado. Leitura apenas; não
-inicia, para nem modifica unidade de sistema.
+The program runs **as a regular user**, without privilege. That limits the
+damage, but not to zero. What it does that deserves attention:
 
-**Executa `clamdscan`** com caminhos vindos de `/proc/mounts` e da configuração.
-Os argumentos são montados como lista, nunca por interpolação em shell — exceto
-na varredura sob demanda, que passa por `sh -c` para redirecionar a saída. Ali os
-caminhos são citados com aspas simples escapadas.
+**Runs `systemctl` and `journalctl`** to read state. Read only; it does not
+start, stop or modify system units.
 
-**Abre terminal e gerenciador de arquivos** com caminhos de configuração. Um
-arquivo de configuração malicioso poderia apontar para outro lugar — mas quem o
-escreve já é você.
+**Runs `clamdscan`** with paths coming from `/proc/mounts` and from the
+configuration. Arguments are built as a list, never by shell interpolation —
+except in the on-demand scan, which goes through `sh -c` to redirect the output.
+There the paths are quoted with escaped single quotes.
 
-**Lê `/proc/mounts` e `/sys/block/*/removable`.** Só leitura.
+**Opens a terminal and a file manager** with paths from the configuration. A
+malicious configuration file could point somewhere else — but whoever writes it
+is already you.
 
-**Não abre porta, não faz requisição de rede, não envia telemetria.**
+**Reads `/proc/mounts` and `/sys/block/*/removable`.** Read only.
 
-## O que o programa deliberadamente NÃO faz
+**Opens no port, makes no network request, sends no telemetry.**
 
-**Não torna a quarentena legível.** Ela é tipicamente `750` de root, e isso está
-certo — é malware guardado. O programa lê um resumo publicado por quem tem
-privilégio, e esse resumo não carrega nome de arquivo nem conteúdo.
+## What the program deliberately does NOT do
 
-**Não abre a quarentena no gerenciador de arquivos.** Gerenciador de arquivos
-gera miniatura e lê cabeçalho do que exibe; encostar num executável malicioso com
-o thumbnailer é um jeito ruim de olhar para ele. A ação lista com `ls` num
-terminal.
+**It does not make the quarantine readable.** It is typically root's `750`, and
+that is right — it is stored malware. The program reads a summary published by
+whoever has the privilege, and that summary carries neither file names nor
+content.
 
-**Não varre a própria quarentena.** Ela é excluída das varreduras da home, senão
-o que já foi isolado seria reencontrado e movido de novo.
+**It does not open the quarantine in the file manager.** File managers generate
+thumbnails and read the headers of what they display; poking a malicious
+executable with the thumbnailer is a bad way to look at it. The action lists it
+with `ls` in a terminal.
 
-## Limitação que vale saber
+**It does not scan its own quarantine.** It is excluded from home scans,
+otherwise what was already isolated would be found and moved again.
 
-O programa **relata**; quem protege é o ClamAV. Um indicador verde significa que
-os serviços responderam e que a última varredura não achou nada — não que a
-máquina esteja limpa.
+## Limitation worth knowing
 
-E há um caso em que ele avisa explicitamente: quando a mídia é somente leitura, o
-`clamdscan` encontra a ameaça e **falha ao isolá-la**, ainda reportando
-`Infected files: N`. O menu distingue "encontrado" de "isolado" justamente por
-isso. Ver [docs/quarantine.md](docs/quarantine.md).
+The program **reports**; ClamAV is what protects. A green indicator means the
+services answered and the last scan found nothing — not that the machine is
+clean.
+
+And there is one case where it warns explicitly: when the media is read-only,
+`clamdscan` finds the threat and **fails to isolate it**, still reporting
+`Infected files: N`. The menu tells "found" apart from "isolated" precisely
+because of that. See [docs/quarantine.md](docs/quarantine.md).

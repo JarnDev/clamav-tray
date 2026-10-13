@@ -1,21 +1,24 @@
-# Contribuindo
+**English** · [Português (Brasil)](CONTRIBUTING.pt-BR.md)
 
-Obrigado por olhar. Este é um projeto pequeno, mantido por uma pessoa, e o que
-segue vale mais como expectativa honesta do que como regra.
+# Contributing
 
-## Antes de tudo: a branch `rust`
+Thanks for looking. This is a small project, maintained by one person, and what
+follows is better read as honest expectation than as rules.
 
-A `main` é a versão Python, funcional e mantida. **É contra ela que os PRs
-devem ir.**
+## First of all: the `rust` branch
 
-A branch `rust` é um exercício pessoal de aprendizado — pode ser reescrita à
-força, rebasada ou abandonada sem aviso. Não construa nada em cima dela.
+`main` is the Python version, working and maintained. **PRs should go against
+it.**
 
-## O que ajuda mais
+The `rust` branch is a personal learning exercise — it may be force-rewritten,
+rebased or abandoned without notice. Do not build anything on top of it.
 
-**Testar em outra distro.** O projeto foi escrito e usado num Ubuntu. Fedora usa
-unidade *templated* (`clamd@scan.service`), Arch tem nomes próprios, e eu não
-testei nenhum dos dois. Um relato com a saída de:
+## What helps the most
+
+**Testing on another distro.** The project was written and used on Ubuntu.
+Fedora (templated unit `clamd@scan.service`) and Arch were checked in containers
+with systemd, which is not the same as daily use on a desktop. A report with the
+output of:
 
 ```sh
 systemctl list-units --all 'clam*'
@@ -23,70 +26,70 @@ clamconf -n | grep -E 'LocalSocket|LogFile'
 python3 -m clamav_tray --dump
 ```
 
-já vale uma issue, mesmo que nada esteja quebrado.
+is already worth an issue, even if nothing is broken.
 
-**Traduzir.** Copie o bloco `pt_BR` em `clamav_tray/i18n.py` e traduza. Não há
-ferramenta para instalar: o catálogo é um dicionário Python, e chave sem tradução
-cai no inglês em vez de quebrar.
+**Translating.** Copy the `pt_BR` block in `clamav_tray/i18n.py` and translate
+it. There is no tool to install: the catalog is a Python dictionary, and a key
+without a translation falls back to English instead of breaking.
 
-**Relatar bandeja que não aparece.** Diga o desktop e a versão. O GNOME removeu a
-bandeja na 3.26 e precisa de extensão; os outros variam.
+**Reporting a tray that does not show up.** Say the desktop and the version.
+GNOME removed the tray in 3.26 and needs an extension; the others vary.
 
-## Antes de propor mudança na interface
+## Before proposing an interface change
 
-Leia [docs/dbusmenu.md](docs/dbusmenu.md). O menu **não é desenhado pelo GTK** —
-ele é serializado por D-Bus e renderizado pelo shell. Widget nenhum atravessa
-essa fronteira, e cinco bugs deste projeto vieram de não saber disso.
+Read [docs/dbusmenu.md](docs/dbusmenu.md). The menu **is not drawn by GTK** — it
+is serialized over D-Bus and rendered by the shell. No widget crosses that
+boundary, and five bugs in this project came from not knowing that.
 
-Se a sua ideia envolve um widget dentro do menu, ela provavelmente não funciona.
-Se envolver negrito, cor de texto ou tooltip, ela definitivamente não funciona.
+If your idea involves a widget inside the menu, it probably does not work.
+If it involves bold, text color or a tooltip, it definitely does not work.
 
-## Testes
-
-```sh
-python3 -m pytest tests/         # se tiver pytest
-python3 -c "import tests.test_scan as t; [getattr(t,n)() for n in dir(t) if n.startswith('test_')]"
-```
-
-O `tests/test_scan.py` usa **saída real de clamdscan** como amostra, não texto
-inventado. Se você mexer no parser, mantenha essa propriedade: o valor do teste
-está em ele ter vindo de uma máquina de verdade.
-
-## Estilo
-
-Não há linter configurado. O código tem uma característica deliberada que vale
-respeitar: **os comentários explicam por que, não o quê**, e quase sempre
-registram uma alternativa que foi tentada e falhou, ou uma medição que contrariou
-a intuição.
-
-Se você corrigir um bug, o comentário que mais ajuda é o que impede alguém de
-reintroduzi-lo.
-
-## O que provavelmente será recusado
-
-- Instalar unidade de sistema ou pedir root na instalação. O projeto é
-  instalável sem privilégio, e isso é o que o separa do ClamTk. Automação
-  privilegiada vai para `contrib/extras/`, opcional.
-- Agendar varredura por conta própria. O programa **observa**; quem decide o que
-  varrer e quando é quem administra a máquina.
-- Reimplementar o que o ClamTk já faz (editar `clamd.conf`, gerenciar quarentena
-  por GUI).
-
-## Lançar uma versão (mantenedor)
+## Tests
 
 ```sh
-scripts/release.sh 0.3.0 --dry-run   # confere tudo e mostra as notas, sem gravar
-scripts/release.sh 0.3.0             # grava commit + tag assinados e envia, perguntando antes
+python3 tests/run.py                 # the whole suite; standard library only
+python3 scripts/check-docs-i18n.py   # EN and PT-BR docs structurally in sync
 ```
 
-Antes de gravar qualquer coisa, o script recusa se: o número não for maior que o
-atual ou já aparecer no CHANGELOG; a seção `[Não lançado]` estiver vazia; a árvore
-estiver suja; a `main` local divergir da `origin/main`; o CI do commit não estiver
-verde; ou os testes locais falharem.
+`tests/test_scan.py` uses **real clamdscan output** as samples, not invented
+text. If you touch the parser, keep that property: the value of the test lies in
+it having come from a real machine.
 
-Depois ele sobe a versão no `pyproject.toml` e no `__version__`, transforma
-`[Não lançado]` em `[X.Y.Z] — data` (deixando uma `[Não lançado]` vazia em cima) e
-envia por **SSH** — o token HTTPS costuma não ter o escopo `workflow`. A tag
-dispara o `publish.yml`, que **espera aprovação manual** no ambiente `pypi` do
-GitHub antes de publicar. Publicação no PyPI não se desfaz: um número publicado
-nunca mais pode ser reusado, nem depois de apagado.
+## Style
+
+There is no linter configured. The code has one deliberate trait worth
+respecting: **comments explain why, not what**, and almost always record an
+alternative that was tried and failed, or a measurement that went against
+intuition.
+
+If you fix a bug, the most helpful comment is the one that stops someone from
+reintroducing it.
+
+## What will probably be declined
+
+- Installing a system unit or asking for root at install time. The project is
+  installable without privilege, and that is what sets it apart from ClamTk.
+  Privileged automation goes into `contrib/extras/`, optional.
+- Scheduling scans on its own. The program **observes**; whoever administers the
+  machine decides what to scan and when.
+- Reimplementing what ClamTk already does (editing `clamd.conf`, managing the
+  quarantine through a GUI).
+
+## Releasing a version (maintainer)
+
+```sh
+scripts/release.sh 0.3.0 --dry-run   # checks everything and shows the notes, writes nothing
+scripts/release.sh 0.3.0             # writes signed commit + tag and pushes, asking first
+```
+
+Before writing anything, the script refuses if: the number is not greater than
+the current one or already appears in the CHANGELOG; the `[Unreleased]` section
+is empty; the tree is dirty; local `main` diverges from `origin/main`; the
+commit's CI is not green; or the local tests fail.
+
+Then it bumps the version in `pyproject.toml` and in `__version__`, turns
+`[Unreleased]` into `[X.Y.Z] — date` (leaving an empty `[Unreleased]` on top)
+and pushes over **SSH** — the HTTPS token usually lacks the `workflow` scope. The
+tag triggers `publish.yml`, which **waits for manual approval** in the GitHub
+`pypi` environment before publishing. A PyPI release cannot be undone: a
+published number can never be reused, not even after deletion.

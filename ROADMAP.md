@@ -1,146 +1,150 @@
+**English** · [Português (Brasil)](ROADMAP.pt-BR.md)
+
 # Roadmap
 
-Duas trilhas independentes. A de produto entrega valor a quem instala; a de aprendizado existe
-para mim. **A segunda nunca atrasa nem degrada a primeira.**
+Two independent tracks. The product track delivers value to whoever installs it; the learning
+track exists for me. **The second never delays or degrades the first.**
 
 ---
 
-# Trilha 1 — o produto (Python, branch `main`)
+# Track 1 — the product (Python, branch `main`)
 
-Os números abaixo são os do [CHANGELOG](CHANGELOG.md) e do PyPI. Versão futura é intenção, não
-promessa: item sobe ou desce conforme o uso real mostrar.
+The numbers below are the ones in the [CHANGELOG](CHANGELOG.md) and on PyPI. A future version is
+an intention, not a promise: items move up or down as real use shows.
 
-## v0.1 — a base (25/09/2026)
+## v0.1 — the foundation (2026-09-25)
 
-- [x] Estado das unidades, detectadas pelo glob `clam*`
-- [x] Distinção **daemon** × **tarefa** pelo `Type=` da unidade
-      (`simple` = rodando é saudável; `oneshot` = rodando é *em execução*)
-- [x] Resultado da última varredura, lido do `SCAN SUMMARY` do próprio clamdscan
-- [x] Varredura sob demanda (home e mídia removível) como unidade transitória
-- [x] Ícone reflete o estado; caminhos vindos do `clamconf`
-- [x] Config TOML (`~/.config/clamav-tray/config.toml`)
-- [x] Traduções, com inglês como fonte e pt_BR completo
-- [x] Duas quarentenas com donos distintos, e mídia removível detectada sem subprocesso
-- [x] Extras opcionais em `contrib/extras/` e autostart por serviço de usuário
+- [x] Unit state, discovered by the `clam*` glob
+- [x] **Daemon** × **job** distinction by the unit's `Type=`
+      (`simple` = running is healthy; `oneshot` = running means *in progress*)
+- [x] Result of the last scan, read from clamdscan's own `SCAN SUMMARY`
+- [x] On-demand scan (home and removable media) as a transient unit
+- [x] Icon reflects the state; paths come from `clamconf`
+- [x] TOML config (`~/.config/clamav-tray/config.toml`)
+- [x] Translations, with English as the source and complete pt_BR
+- [x] Two quarantines with distinct owners, and removable media detected without a subprocess
+- [x] Optional extras in `contrib/extras/` and autostart as a user service
 
-## v0.2 — primeira publicada (13/10/2026)
+## v0.2 — first published (2026-10-13)
 
-- [x] No PyPI: `pipx install --system-site-packages clamav-tray`
-- [x] Barra de progresso por **contagem** de arquivos, legível no tamanho real
-- [x] Alarme escolhe a varredura pela data, não pelo barramento
-- [x] `daily-scan` incremental (por ctime) todo dia, completa a cada 7
-- [x] Sem PyGObject, o programa diz como corrigir em vez de despejar traceback
-- [x] `scripts/release.sh`: lançamento em um comando, publicação com aprovação manual
+- [x] On PyPI: `pipx install --system-site-packages clamav-tray`
+- [x] Progress bar by file **count**, legible at real size
+- [x] The alarm picks the scan by date, not by bus
+- [x] Incremental `daily-scan` (by ctime) every day, full every 7
+- [x] Without PyGObject, the program says how to fix it instead of dumping a traceback
+- [x] `scripts/release.sh`: release in one command, publishing with manual approval
 
-## v0.3 — arestas que o empacotamento expôs
+## v0.3 — edges the packaging exposed
 
-Quem instala pelo PyPI tem uma experiência pior que quem clona. Fechar essa diferença vem antes
-de qualquer recurso novo.
+Whoever installs from PyPI has a worse experience than whoever clones. Closing that gap comes
+before any new feature.
 
-- [x] **Autostart sem clonar.** `clamav-tray --install-autostart`, com os modelos dentro do
-      pacote e a mesma conferência de `is-active` do script — e `--show-autostart` para
-      inspecionar destino e conteúdo antes de permitir.
-- [x] **Sem tela, mensagem em vez de core dump.** O GTK abortava sem `DISPLAY`; agora
-      `Gtk.init_check()` é conferido antes, cobrindo também `DISPLAY` que aponta para o nada.
-- [x] **`--dump --json`**, saída estável para script e para o Glance/Conky. É também o contrato
-      que o `clamav-status` da Trilha 2 vai cumprir — escrevê-lo em Python primeiro fixa o formato.
-- [x] **Notificação ao terminar a varredura sob demanda**, pelo próprio tray, via D-Bus e sem
-      dependência nova — distinguindo ameaça isolada de ameaça encontrada e não isolada.
-- [x] **Validar Fedora e Arch.** Em containers com systemd: a descoberta acha `clamd@scan`
-      (Fedora) e `clamav-daemon` (Arch), o `clamconf` dá os caminhos certos nos dois. E mostrou
-      um bug: sem serviço nenhum, o tray dizia "Protegido" — corrigido.
+- [x] **Autostart without cloning.** `clamav-tray --install-autostart`, with the templates inside
+      the package and the same `is-active` check as the script — and `--show-autostart` to
+      inspect destination and content before allowing it.
+- [x] **No display: a message instead of a core dump.** GTK aborted without `DISPLAY`; now
+      `Gtk.init_check()` is checked first, also covering a `DISPLAY` that points at nothing.
+- [x] **`--dump --json`**, stable output for scripts and for Glance/Conky. It is also the contract
+      that Track 2's `clamav-status` will fulfill — writing it in Python first pins the format.
+- [x] **Notification when the on-demand scan finishes**, from the tray itself, over D-Bus and with
+      no new dependency — telling a quarantined threat apart from one found but not contained.
+- [x] **Validate Fedora and Arch.** In containers with systemd: discovery finds `clamd@scan`
+      (Fedora) and `clamav-daemon` (Arch), and `clamconf` gives the right paths on both. It also
+      exposed a bug: with no service at all, the tray said "Protected" — fixed.
 
 ## v0.4 — extras
 
-- [ ] `daily-scan`: modo **sistema inteiro** opcional, além da home, com exclusões próprias
-      (`/proc`, `/sys`, `/var/lib/docker`, snaps, modelos de IA). Exige pensar no custo: a
-      completa da home sozinha já leva horas num SSD SATA.
-- [ ] `daily-scan`: a completa semanal com **notificação só quando algo muda**, para que o
-      alarme diário não vire ruído.
-- [ ] Teste automatizado dos scripts de `contrib/` (hoje: só `bash -n` no CI e teste manual
-      contra o clamd real).
+- [ ] `daily-scan`: optional **whole-system** mode, beyond home, with its own exclusions
+      (`/proc`, `/sys`, `/var/lib/docker`, snaps, AI models). Needs thought about cost: the
+      full scan of home alone already takes hours on a SATA SSD.
+- [ ] `daily-scan`: the weekly full scan with **notification only when something changes**, so
+      the daily alarm doesn't turn into noise.
+- [ ] Automated tests for the `contrib/` scripts (today: only `bash -n` in CI and manual testing
+      against the real clamd).
 
-## Distribuição — por demanda, não por data
+## Distribution — on demand, not by date
 
-O PyPI cobre quem tem pipx. Pacote de distro é trabalho recorrente (um build por versão de
-distro, assinatura, revisão), e só se paga com gente usando.
+PyPI covers whoever has pipx. A distro package is recurring work (one build per distro version,
+signing, review), and only pays off with people using it.
 
-| Canal | Quando | Por quê nessa ordem |
+| Channel | When | Why in this order |
 |---|---|---|
-| **AUR** | primeiro pedido de usuário Arch | um `PKGBUILD`; o mais barato de manter |
-| **`.deb` / PPA** | uso real recorrente no Debian/Ubuntu | resolve as dependências do apt num passo, mas é o mais caro |
-| **Flathub** | provavelmente nunca | o sandbox briga com a premissa: ler systemd e `/proc` do host |
+| **AUR** | first request from an Arch user | one `PKGBUILD`; the cheapest to maintain |
+| **`.deb` / PPA** | recurring real use on Debian/Ubuntu | solves the apt dependencies in one step, but is the most expensive |
+| **Flathub** | probably never | the sandbox fights the premise: reading the host's systemd and `/proc` |
 
-Os extras de `contrib/` ficam **fora** de qualquer pacote do programa: instalam unidade de sistema
-como root, e o tray é instalável sem privilégio por decisão. Se um dia fizer sentido, vão num
-pacote separado e opcional.
+The `contrib/` extras stay **out** of any package of the program: they install system units as
+root, and the tray is installable without privilege by design. If it ever makes sense, they go in
+a separate, optional package.
 
-## Em aberto, sem versão — o que pedem mas eu ainda não sei se quero
+## Open, unversioned — what people ask for but I'm not sure I want yet
 
-- [ ] Ações de serviço (start/stop/restart) — exige polkit, e aumenta muito a superfície
-- [ ] Múltiplas instâncias `clamd@` no Fedora, lado a lado
-- [ ] Suporte a `clamonacc` (varredura em acesso) além de mostrar a unidade
+- [ ] Service actions (start/stop/restart) — requires polkit, and greatly widens the surface
+- [ ] Multiple `clamd@` instances on Fedora, side by side
+- [ ] `clamonacc` support (on-access scanning) beyond showing the unit
 
-## Fora de escopo, por decisão
+## Out of scope, by decision
 
-Editar `clamd.conf`, agendar varredura por GUI, gerenciar quarentena com interface. Isso é o
-ClamTk, e não vale reconstruir. Este projeto **observa e aciona**; não configura.
+Editing `clamd.conf`, scheduling scans from a GUI, managing quarantine through an interface. That
+is ClamTk, and it isn't worth rebuilding. This project **observes and triggers**; it doesn't
+configure.
 
-Não-systemd (OpenRC, runit, s6) fica aqui embaixo sem data: seria uma segunda camada inteira de
-detecção, e o valor do projeto é exatamente a integração com systemd.
+Non-systemd (OpenRC, runit, s6) stays down here with no date: it would be a whole second layer of
+detection, and the project's value is precisely the systemd integration.
 
 ---
 
-# Trilha 2 — aprender Rust (branch `rust`)
+# Track 2 — learning Rust (branch `rust`)
 
-**Regra que governa tudo:** a `main` nunca depende desta branch. A virada de chave acontece
-quando eu tiver confiança na linguagem, e não antes. Se não vier, a versão Python fica.
+**The rule that governs everything:** `main` never depends on this branch. The switch happens
+when I'm confident in the language, and not before. If that never comes, the Python version stays.
 
-## Ordem de migração, e por quê
+## Migration order, and why
 
-A ordem é pedagógica, não técnica. Cada etapa introduz **um** conceito novo.
+The order is pedagogical, not technical. Each step introduces **one** new concept.
 
-| # | Módulo | O que ensina | Por que nesta posição |
+| # | Module | What it teaches | Why in this position |
 |---|---|---|---|
-| 1 | `scan.py` → `scan.rs` | `Result`, `?`, `Option`, enums, parsing | Entrada e saída puras: texto entra, struct sai. **Testável sem máquina rodando.** Nada de I/O, nada de posse compartilhada |
-| 2 | `units.py` → `units.rs` | `std::process::Command`, structs, `HashMap` | Continua síncrono. Introduz processo externo e tratamento de erro de verdade |
-| 3 | `config.py` → `config.rs` | `serde`, traits, tempos de vida | Primeira vez que o borrow checker aparece com força |
-| 4 | `actions.py` → `actions.rs` | ambiente, `PathBuf`, detecção de programa | Pequeno, consolida o que veio antes |
-| 5 | `tray.py` → `ksni` | async, `Arc<Mutex>`, limites `'static` | **Último de propósito.** É onde iniciante trava, e depurar bandeja é péssimo: quando não aparece, não há mensagem de erro, só ausência |
+| 1 | `scan.py` → `scan.rs` | `Result`, `?`, `Option`, enums, parsing | Pure input and output: text in, struct out. **Testable without a running machine.** No I/O, no shared ownership |
+| 2 | `units.py` → `units.rs` | `std::process::Command`, structs, `HashMap` | Still synchronous. Introduces an external process and real error handling |
+| 3 | `config.py` → `config.rs` | `serde`, traits, lifetimes | First time the borrow checker shows up in force |
+| 4 | `actions.py` → `actions.rs` | environment, `PathBuf`, program detection | Small; consolidates what came before |
+| 5 | `tray.py` → `ksni` | async, `Arc<Mutex>`, `'static` bounds | **Last on purpose.** It's where beginners get stuck, and debugging a tray is miserable: when it doesn't show up, there's no error message, just absence |
 
-Entre a etapa 2 e a 3, o binário já é útil sozinho como `clamav-status --json`, e o tray em
-Python pode passar a consumir esse JSON. É o padrão do
-[ai-usagebar](https://github.com/akitaonrails/ai-usagebar): binário faz o trabalho, camada fina
-desenha.
+Between steps 2 and 3, the binary is already useful on its own as `clamav-status --json`, and the
+Python tray can start consuming that JSON. It's the
+[ai-usagebar](https://github.com/akitaonrails/ai-usagebar) pattern: the binary does the work, a
+thin layer draws.
 
-Isso significa que a migração entrega valor **no meio do caminho**, não só no fim — e que a
-etapa 5 pode nunca acontecer sem que isso seja perda.
+That means the migration delivers value **halfway through**, not only at the end — and that step 5
+may never happen without that being a loss.
 
-## Protocolo de validação
+## Validation protocol
 
-O mesmo que uso na trilha de C/C++: ao terminar um módulo, eu não passo adiante antes de ser
-arguido sobre ele. Não vale "compilou e rodou" — o teste é explicar por que o compilador aceitou.
+The same one I use in the C/C++ track: when I finish a module, I don't move on before being
+questioned about it. "It compiled and ran" doesn't count — the test is explaining why the compiler
+accepted it.
 
-Para cada módulo portado:
+For each ported module:
 
-1. Comportamento idêntico ao Python, verificado com a **mesma entrada** nos dois
-2. Testes cobrindo os casos que descobri usando o Python de verdade
-3. Arguição: por que esta assinatura, por que esta posse, o que o compilador impediu e o que
-   eu teria errado sem ele
+1. Behavior identical to the Python one, verified with the **same input** on both
+2. Tests covering the cases I discovered using the Python version for real
+3. Questioning: why this signature, why this ownership, what the compiler prevented and what I
+   would have gotten wrong without it
 
-## Pré-requisito que assumi
+## Prerequisite I took on
 
-Terminar ponteiros e RAII na trilha de C/C++ antes de abrir Rust. Posse e empréstimo fazem muito
-mais sentido depois de gerenciar memória na mão — deixam de ser regra arbitrária e viram "o
-compilador conferindo o que eu já tentava fazer certo".
+Finish pointers and RAII in the C/C++ track before opening Rust. Ownership and borrowing make much
+more sense after managing memory by hand — they stop being an arbitrary rule and become "the
+compiler checking what I was already trying to get right".
 
-## Sinais de que a virada de chave pode acontecer
+## Signs that the switch can happen
 
-Não são metas, são sintomas. Quando eu perceber que:
+These aren't goals, they're symptoms. When I notice that:
 
-- leio erro do compilador e já sei o que fazer, sem procurar
-- escrevo a assinatura antes do corpo, e ela costuma estar certa
-- não sinto vontade de `.clone()` para fugir do problema
-- consigo revisar PR em Rust de outra pessoa
+- I read a compiler error and already know what to do, without searching
+- I write the signature before the body, and it's usually right
+- I don't feel the urge to `.clone()` my way out of a problem
+- I can review someone else's Rust PR
 
-Aí a branch vira `main`. Antes disso, não.
+Then the branch becomes `main`. Not before.
