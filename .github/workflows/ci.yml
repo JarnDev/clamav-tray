@@ -33,6 +33,14 @@ jobs:
         with: { python-version: "3.12" }
       - name: Sintaxe de todos os modulos
         run: python -c "import ast,pathlib;[ast.parse(p.read_text()) for p in pathlib.Path('clamav_tray').glob('*.py')]"
+      - name: Nomes indefinidos
+        # O tray nao tem teste de interface: um NameError dentro de um metodo do
+        # menu so aparece quando o metodo roda — na 0.3, foi o servico de usuario
+        # reiniciando em laco. O pyflakes acha isso sem executar. So nome
+        # indefinido reprova; import sem uso e estilo, nao quebra ninguem.
+        run: |
+          pip install -q pyflakes
+          if python -m pyflakes clamav_tray tests | grep -E "undefined name|referenced before assignment"; then exit 1; fi
       - name: Sintaxe dos scripts de shell
         run: |
           for f in $(git ls-files '*.sh'); do bash -n "$f" || exit 1; done
