@@ -32,8 +32,8 @@ for _lib, _ver in (("AyatanaAppIndicator3", "0.1"), ("AppIndicator3", "0.1")):
     except (ValueError, ImportError, KeyError):
         continue
 
-from . import (actions, config as config_mod, devices, history, notify, progress,  # noqa: E402
-               quarantine, scan, text, units, widgets)
+from . import (actions, commands, config as config_mod, devices, history, notify,  # noqa: E402
+               progress, quarantine, report, scan, text, units, widgets)
 from .config import Config  # noqa: E402
 from . import i18n  # noqa: E402
 from .i18n import _  # noqa: E402
@@ -56,19 +56,23 @@ _FALLBACK_SCAN_SECS = 4 * 3600
 
 
 class Tray:
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, headless: bool = False):
+        # headless: sem icone na bandeja. Mantem atualizacao, notificacoes e o
+        # state.json — e o modo para quando a extensao do GNOME desenha o painel,
+        # sem dois icones na barra. Nao precisa de tela nem de AppIndicator.
+        self.headless = headless
         # Sem tela, o GTK nao falha: ABORTA (Gtk-ERROR e core dump) no primeiro
         # widget. init_check devolve False em vez disso — testado com DISPLAY
         # ausente e com DISPLAY apontando para tela que nao existe. Conferir a
         # variavel de ambiente so cobriria o primeiro caso.
-        if not Gtk.init_check()[0]:
+        if not headless and not Gtk.init_check()[0]:
             raise RuntimeError(
                 "sem conexao com a tela (DISPLAY/WAYLAND_DISPLAY). O indicador precisa "
                 "de uma sessao grafica; para diagnostico sem GUI use --dump. Como "
                 "servico de usuario, a sessao precisa exportar o ambiente: "
                 "systemctl --user import-environment DISPLAY WAYLAND_DISPLAY"
             )
-        if _INDICATOR is None:
+        if not headless and _INDICATOR is None:
             raise RuntimeError(
                 "nenhum AppIndicator encontrado — instale gir1.2-appindicator3-0.1 "
                 "ou gir1.2-ayatanaappindicator3-0.1"
@@ -101,16 +105,21 @@ class Tray:
         self._scanning_home = False
         # Parada pelo usuario nao notifica "nao concluiu": ele acabou de pedir isso.
         self._stopped = False
-        self.indicator = _INDICATOR.Indicator.new(
-            "clamav-tray", ICONS["ok"], _INDICATOR.IndicatorCategory.SYSTEM_SERVICES
-        )
-        self.indicator.set_status(_INDICATOR.IndicatorStatus.ACTIVE)
-        self.indicator.set_title("ClamAV")
+        self.indicator = None
+        if not headless:
+            self.indicator = _INDICATOR.Indicator.new(
+                "clamav-tray", ICONS["ok"], _INDICATOR.IndicatorCategory.SYSTEM_SERVICES
+            )
+            self.indicator.set_status(_INDICATOR.IndicatorStatus.ACTIVE)
+            self.indicator.set_title("ClamAV")
 
     def run(self) -> None:
         self._refresh()
         GLib.timeout_add_seconds(self.cfg.refresh_secs, self._refresh)
-        Gtk.main()
+        if self.headless:
+            GLib.MainLoop().run()
+        else:
+            Gtk.main()
 
     # ---------------------------------------------------------------- estado
 
@@ -137,6 +146,19 @@ class Tray:
         if result.duration_secs:
             self._last_duration = result.duration_secs
 
+        meta = commands.read_meta()
+        # ADOTA varredura sob demanda que este processo nao iniciou: lancada pela
+        # linha de comando (a extensao do GNOME usa esse caminho), ou iniciada antes
+        # de o tray reiniciar. Sem isto ela terminaria sem aviso e sem resultado
+        # por escopo.
+        if (job and job.user_scope and job.is_running_job and meta
+                and not (self._scanning_key or self._scanning_home)):
+            self._scan_target = meta.target
+            self._scanning_key = meta.device_key
+            self._scanning_home = meta.device_key is None
+            self._stopped = meta.stopped
+            self._list_total = progress.count_lines(progress.list_path()) or None
+
         # (result ja foi calculado acima e traz a contagem de infectados)
         # A varredura de midia so conta como feita quando a unidade TERMINA bem.
         # Marcar no clique fazia o dispositivo aparecer "varrido" com a barra em
@@ -157,7 +179,7 @@ class Tray:
                     self._last_home = registro
             # A varredura que o usuario mandou rodar terminava em silencio: o
             # resultado so aparecia se ele abrisse o menu. Esta e a hora de avisar.
-            if not self._stopped:
+            if not (self._stopped or (meta and meta.stopped)):
                 titulo, corpo, urgente = text.scan_finished(
                     _shorten(self._scan_target or Path.home()), result, presas, concluded)
                 notify.send(titulo, corpo, ICONS["threat" if urgente else "ok"], urgente)
@@ -184,12 +206,33 @@ class Tray:
         else:
             key, mark = "ok", widgets.OK
 
-        self.indicator.set_icon_full(ICONS[key], "ClamAV")
-        self.indicator.set_label(self._indicator_label(running, loose_scan, result, pending, broken), "")
-        self.indicator.set_menu(
-            self._build_menu(state, running, broken, result, mark, loose_scan, media)
-        )
+        self._publish_state(state, job, result, loose_scan, media)
+        if self.indicator is not None:
+            self.indicator.set_icon_full(ICONS[key], "ClamAV")
+            self.indicator.set_label(self._indicator_label(running, loose_scan, result, pending, broken), "")
+            self.indicator.set_menu(
+                self._build_menu(state, running, broken, result, mark, loose_scan, media)
+            )
         return True  # mantem o timer vivo
+
+    def _publish_state(self, state, job, result, loose_scan, media) -> None:
+        """Grava o estado em state.json a cada atualizacao, para a extensao do
+        GNOME (ou qualquer leitor) sem rodar processo nenhum.
+
+        So este processo tem o progresso: o contador incremental da saida mora
+        aqui, e o --dump teria de recontar ate um milhao de linhas a cada leitura.
+        Falha ao gravar nunca derruba o tray.
+        """
+        pr = None
+        if job and job.is_running_job:
+            pr = self._progress_data()
+        try:
+            commands.write_atomic(report.state_path(), report.to_json(report.build(
+                self.cfg, state, job, result, loose_scan, report.version(),
+                progress=pr, media=media, media_scanned=self._scanned,
+                quarantine=report.quarantine_info(self.cfg), producer="tray")))
+        except OSError:
+            pass
 
     def _scan_card(self, elapsed: int, ours: bool) -> list:
         """Bloco de informacoes da varredura em curso.
@@ -579,12 +622,9 @@ class Tray:
     def _on_scan(self, *_a):
         # A varredura sob demanda usa a quarentena do USUARIO: a do sistema e de
         # root e ela roda como voce. Sem destino gravavel o clamdscan aborta.
-        dest = config_mod.ensure_user_quarantine(self.cfg.user_quarantine) \
-            if self.cfg.user_quarantine else None
-        # Limpa travas de varreduras interrompidas antes de comecar: elas se
-        # acumulam e o clamdscan nao as remove sozinho.
-        config_mod.clean_stale_locks(dest)
-        actions.start_scan(Path.home(), self.cfg.socket, dest)
+        # A preparacao (quarentena do usuario, travas velhas, scan.json) mora em
+        # commands: e o mesmo caminho da linha de comando e da extensao.
+        commands.scan_home(self.cfg)
         self._scan_target = Path.home()
         self._scanning_home = True
         self._scanning_key = None
@@ -593,12 +633,7 @@ class Tray:
         self._list_total = progress.count_lines(progress.list_path()) or None
 
     def _on_scan_device(self, dev):
-        dest = config_mod.ensure_user_quarantine(self.cfg.user_quarantine) \
-            if self.cfg.user_quarantine else None
-        config_mod.clean_stale_locks(dest)
-        # excludes=[] : as regras da home (cache, node_modules) nao existem numa
-        # midia removivel e so gastariam tempo do find.
-        if actions.start_scan(dev.mountpoint, self.cfg.socket, dest, excludes=[]):
+        if commands.scan_device(self.cfg, dev):
             self._scanning_key = dev.key
             self._scanning_home = False
             self._stopped = False
@@ -607,7 +642,7 @@ class Tray:
 
     def _on_stop(self, *_a):
         self._stopped = True
-        actions.stop_scan()
+        commands.stop_scan()
 
     def _on_quarantine_system(self, *_a):
         actions.list_quarantine(self.cfg.quarantine, self.cfg.terminal)

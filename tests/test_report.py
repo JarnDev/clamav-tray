@@ -54,13 +54,17 @@ def test_formato_e_tipos():
     d = build(CFG, _estado(DAEMON, TIMER, AGENDADA), AGENDADA, LIMPA, version="0.3.0")
     assert d["schema"] == SCHEMA == 1
     assert d["version"] == "0.3.0"
-    assert set(d) == {"schema", "version", "status", "units", "scan", "paths"}
+    # Campos novos nao sobem o schema, mas entram aqui de proposito: cada um e uma
+    # promessa a quem le. (0.5: producer, generated_at, media, quarantine, progress.)
+    assert set(d) == {"schema", "version", "producer", "generated_at", "status", "units",
+                      "scan", "media", "quarantine", "paths"}
     unidade = d["units"][0]
     assert set(unidade) == {"id", "label", "kind", "user_scope", "active_state", "sub_state",
                             "result", "healthy", "running", "exit_status", "started_at",
                             "finished_at", "next_run"}
     assert set(d["scan"]) == {"unit", "running", "outside_systemd", "verdict", "infected",
-                              "unreadable", "scanned", "duration_secs", "finished_at"}
+                              "unreadable", "scanned", "duration_secs", "finished_at",
+                              "progress"}
     assert set(d["paths"]) == {"socket", "scan_log", "daemon_log", "quarantine", "user_quarantine"}
     # Tem de sobreviver a json.dumps sem default=: nada de datetime ou Path cru.
     json.dumps(d)
@@ -88,6 +92,7 @@ def test_resultado_da_varredura():
         "unit": "clamav-scan.service", "running": False, "outside_systemd": False,
         "verdict": "clean", "infected": 0, "unreadable": 6, "scanned": None,
         "duration_secs": 16317, "finished_at": "2026-10-13T07:54:11-03:00",
+        "progress": None,
     }
 
 
@@ -107,3 +112,44 @@ def test_varredura_fora_do_systemd():
     d = build(CFG, _estado(DAEMON), None, LIMPA, loose_scan=True)
     assert d["scan"]["running"] is True
     assert d["scan"]["outside_systemd"] is True
+
+
+def test_produtor_e_horario_de_geracao():
+    agora = datetime(2026, 10, 13, 18, 0, 0, tzinfo=TZ)
+    d = build(CFG, _estado(DAEMON), None, LIMPA, producer="tray", now=agora)
+    assert d["producer"] == "tray"
+    assert d["generated_at"] == "2026-10-13T18:00:00-03:00"
+    assert build(CFG, _estado(DAEMON), None, LIMPA)["producer"] == "dump"
+
+
+def test_progresso_da_varredura_em_curso():
+    from clamav_tray.progress import Progress
+    d = build(CFG, _estado(RODANDO), RODANDO, parse_summary(""),
+              progress=Progress(done=57000, total=100000))
+    assert d["scan"]["progress"] == {"done": 57000, "total": 100000}
+    assert d["scan"]["running"] is True
+
+
+def test_midia_varrida_e_nao_varrida():
+    from clamav_tray.devices import Device
+    pen = Device(source="/dev/sdc1", mountpoint=Path("/media/u/PEN"), label="PEN",
+                 size_bytes=16 * 1024 ** 3)
+    cd = Device(source="/dev/sr0", mountpoint=Path("/media/u/CD"), label="CD")
+    quando = datetime(2026, 10, 13, 17, 0, tzinfo=TZ)
+    d = build(CFG, _estado(DAEMON), None, LIMPA, media=[pen, cd],
+              media_scanned={cd.key: (quando, 1, 1)})
+    assert d["media"][0] == {"key": "/dev/sdc1:/media/u/PEN", "label": "PEN",
+                             "mountpoint": "/media/u/PEN", "size_bytes": 16 * 1024 ** 3,
+                             "scanned": None}
+    # CD somente leitura: encontrou 1 e nao isolou 1.
+    assert d["media"][1]["scanned"] == {"at": "2026-10-13T17:00:00-03:00",
+                                        "infected": 1, "not_contained": 1}
+
+
+def test_quarentena_desconhecida_e_null():
+    d = build(CFG, _estado(DAEMON), None, LIMPA,
+              quarantine={"system": None, "user": {"count": 2}})
+    assert d["quarantine"] == {"system": None, "user": {"count": 2}}
+    # Sem informar, o campo existe e e null — ausencia nao e omissao.
+    assert build(CFG, _estado(DAEMON), None, LIMPA)["quarantine"] is None
+    json.dumps(d)

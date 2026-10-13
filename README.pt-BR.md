@@ -164,6 +164,10 @@ caminhos pelo `clamconf`.
 clamav-tray --dump            # o que o tray veria, em texto
 clamav-tray --dump --json     # o mesmo, como dado — formato estável
 clamav-tray --dump --json | jq -r .status    # ok | busy | warn | threat
+clamav-tray --scan-home                    # inicia uma varredura sob demanda da sua home
+clamav-tray --scan-device /media/voce/PEN  # ... de uma mídia removível (ponto de montagem ou chave)
+clamav-tray --stop-scan
+clamav-tray --headless                     # sem ícone na bandeja: só state.json e notificações
 ```
 
 Não precisa de tela nem de PyGObject. O JSON é um contrato versionado (campo

@@ -67,7 +67,7 @@ logic stays in Python. Merged into `main` only after acceptance tests.
 - [x] **F0 — proof of concept.** A nested GNOME Shell, isolated from the real session (own
       D-Bus, dconf and extension dirs: `scripts/dev-nested-shell.sh`), loads a bar button;
       three disable/enable cycles leave nothing behind.
-- [ ] **F1 — Python side.** The tray writes `state.json` to `$XDG_RUNTIME_DIR` atomically on
+- [x] **F1 — Python side.** The tray writes `state.json` to `$XDG_RUNTIME_DIR` atomically on
       every refresh; new JSON fields (`scan.progress`, `media`, `quarantine`) without a schema
       bump; `--headless` (no tray icon) and action commands (`--scan-home`, `--stop-scan`,
       `--scan-device`).

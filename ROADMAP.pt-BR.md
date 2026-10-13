@@ -67,7 +67,7 @@ funcionando em qualquer desktop; a extensão só **lê e desenha**, e os botões
 - [x] **F0 — prova de conceito.** Um GNOME Shell aninhado, isolado da sessão real (D-Bus,
       dconf e pastas de extensão próprios: `scripts/dev-nested-shell.sh`), carrega um botão na
       barra; três ciclos de desligar e religar não deixam nada para trás.
-- [ ] **F1 — lado Python.** O tray grava `state.json` em `$XDG_RUNTIME_DIR` de forma atômica a
+- [x] **F1 — lado Python.** O tray grava `state.json` em `$XDG_RUNTIME_DIR` de forma atômica a
       cada atualização; campos novos no JSON (`scan.progress`, `media`, `quarantine`) sem subir
       o schema; `--headless` (sem ícone na bandeja) e comandos de ação (`--scan-home`,
       `--stop-scan`, `--scan-device`).

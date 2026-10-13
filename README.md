@@ -167,6 +167,10 @@ paths through `clamconf`.
 clamav-tray --dump            # what the tray would see, as text
 clamav-tray --dump --json     # the same, as data — stable format
 clamav-tray --dump --json | jq -r .status    # ok | busy | warn | threat
+clamav-tray --scan-home                    # start an on-demand scan of your home
+clamav-tray --scan-device /media/you/PEN   # ... of a removable medium (mountpoint or key)
+clamav-tray --stop-scan
+clamav-tray --headless                     # no tray icon: state.json and notifications only
 ```
 
 No display and no PyGObject needed. The JSON is a versioned contract (`schema`

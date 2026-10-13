@@ -15,8 +15,11 @@ sem systemd rodando, como o scan.py.
 
 from __future__ import annotations
 
-from datetime import datetime
+import json
+from datetime import datetime, timezone
+from pathlib import Path
 
+from . import progress as progress_mod
 from .config import Config
 from .scan import ScanResult
 from .units import Unit
@@ -49,6 +52,50 @@ def status(state: dict[str, Unit], result: ScanResult, loose_scan: bool = False)
     return "ok"
 
 
+def state_path() -> Path:
+    """Onde o tray publica o estado a cada atualizacao (tmpfs, some no logout)."""
+    return progress_mod.runtime_dir() / "state.json"
+
+
+def version() -> str:
+    from . import __version__
+    return __version__
+
+
+def to_json(d: dict) -> str:
+    return json.dumps(d, indent=2, ensure_ascii=False)
+
+
+def quarantine_info(cfg: Config) -> dict:
+    """As duas quarentenas. `null` quando nao da para saber — nao e zero: a do
+    sistema e de root e so se conhece pelo resumo que alguem com privilegio publica."""
+    from . import config as config_mod, quarantine
+    stats = quarantine.read_stats()
+    user_n = config_mod.quarantine_count(cfg.user_quarantine) if cfg.user_quarantine else None
+    return {
+        "system": None if stats is None else {
+            "count": stats.count, "bytes": stats.bytes, "checked_at": _ts(stats.checked_at)},
+        "user": None if user_n is None else {"count": user_n},
+    }
+
+
+def _media(media, scanned) -> list:
+    out = []
+    for dev in media or []:
+        reg = (scanned or {}).get(dev.key)
+        out.append({
+            "key": dev.key,
+            "label": dev.label,
+            "mountpoint": str(dev.mountpoint),
+            "size_bytes": dev.size_bytes,
+            # O que o tray varreu NESTA sessao. null = nao varrida (ou --dump, que
+            # nao tem como saber: isso vive na memoria do tray).
+            "scanned": None if reg is None else {
+                "at": _ts(reg[0]), "infected": reg[1], "not_contained": reg[2]},
+        })
+    return out
+
+
 def build(
     cfg: Config,
     state: dict[str, Unit],
@@ -56,10 +103,22 @@ def build(
     result: ScanResult,
     loose_scan: bool = False,
     version: str | None = None,
+    *,
+    progress=None,
+    media=None,
+    media_scanned: dict | None = None,
+    quarantine: dict | None = None,
+    producer: str = "dump",
+    now: datetime | None = None,
 ) -> dict:
     return {
         "schema": SCHEMA,
         "version": version,
+        # Quem gerou e quando: o leitor do state.json precisa saber se o tray
+        # ainda esta vivo — arquivo velho e tray parado.
+        "producer": producer,
+        # Fuso local e segundos inteiros, como os demais horarios do documento.
+        "generated_at": _ts(now or datetime.now(timezone.utc).astimezone().replace(microsecond=0)),
         "status": status(state, result, loose_scan),
         "units": [
             {
@@ -90,7 +149,11 @@ def build(
             "scanned": result.scanned,
             "duration_secs": result.duration_secs,
             "finished_at": _ts(job.finished_at) if job else None,
+            "progress": None if progress is None else {
+                "done": progress.done, "total": progress.total},
         },
+        "media": _media(media, media_scanned),
+        "quarantine": quarantine,
         "paths": {
             "socket": _path(cfg.socket),
             "scan_log": _path(cfg.scan_log),

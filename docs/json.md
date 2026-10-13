@@ -28,7 +28,9 @@ same output.
 ```json
 {
   "schema": 1,
-  "version": "0.3.0",
+  "version": "0.5.0",
+  "producer": "tray",
+  "generated_at": "2026-10-13T18:01:42-03:00",
   "status": "ok",
   "units": [
     {
@@ -56,7 +58,13 @@ same output.
     "unreadable": 6,
     "scanned": null,
     "duration_secs": 16317,
-    "finished_at": "2026-10-13T07:54:11-03:00"
+    "finished_at": "2026-10-13T07:54:11-03:00",
+    "progress": null
+  },
+  "media": [],
+  "quarantine": {
+    "system": null,
+    "user": {"count": 0}
   },
   "paths": {
     "socket": "/var/run/clamav/clamd.ctl",
@@ -68,6 +76,14 @@ same output.
 }
 ```
 
+## The state file
+
+The running tray (also in `--headless` mode) writes this same document to
+`$XDG_RUNTIME_DIR/clamav-tray/state.json` on every refresh, atomically (temporary
+file + rename: a reader never sees half a file). It is what the GNOME extension
+reads, at no cost: no process is spawned. `--dump --json` is the fallback when the
+tray isn't running.
+
 ## Fields
 
 **Root**
@@ -76,6 +92,8 @@ same output.
 |---|---|---|
 | `schema` | int | version of this format |
 | `version` | string | version of clamav-tray that produced it |
+| `producer` | `"tray"` \| `"dump"` | `tray` = the `state.json` the running tray writes; `dump` = `--dump --json` |
+| `generated_at` | string | ISO 8601. A `state.json` that stops changing means the tray stopped |
 | `status` | `"ok"` \| `"busy"` \| `"warn"` \| `"threat"` | the same precedence as the icon: threat > scanning > service down > ok. **No unit found is `warn`**, not `ok` |
 
 `status` does **not** include pending removable media: "pending" depends on what the tray
@@ -108,6 +126,20 @@ finished last)
 | `scanned` | int \| null | `clamdscan` doesn't always print it |
 | `duration_secs` | int \| null | |
 | `finished_at` | string \| null | |
+| `progress` | `{done, total}` \| null | files done / files listed, by count. Only in `state.json`: the counter lives in the tray process |
+
+**`media[]`** — removable media mounted under the user's tree
+
+| field | type | |
+|---|---|---|
+| `key` | string | `device:mountpoint`, the identity used by `--scan-device` |
+| `label`, `mountpoint` | string | |
+| `size_bytes` | int \| null | |
+| `scanned` | `{at, infected, not_contained}` \| null | what the tray scanned **this session**; `null` = not scanned, and always `null` in `--dump` (that lives in the tray's memory). `not_contained` = found but not quarantined (read-only media) |
+
+**`quarantine`** — `{system, user}`; each one `null` when it can't be known
+(the system one belongs to root and is known only through the summary someone
+privileged publishes). `system`: `{count, bytes, checked_at}`; `user`: `{count}`.
 
 **`paths`** — `socket`, `scan_log`, `daemon_log`, `quarantine`, `user_quarantine`:
 string or `null`. `daemon_log` is clamd's log, **not** the scan's.

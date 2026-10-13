@@ -4,6 +4,28 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`state.json`**: the running tray writes its state to
+  `$XDG_RUNTIME_DIR/clamav-tray/state.json` on every refresh, atomically. Same
+  document as `--dump --json`, plus what only the tray knows: scan progress and
+  which media it scanned this session. New fields (`producer`, `generated_at`,
+  `scan.progress`, `media`, `quarantine`) — no `schema` bump, since nothing
+  changed meaning.
+- **`--headless`**: no tray icon, no display needed; keeps refreshing, notifying
+  and writing `state.json`. For when the GNOME panel draws instead.
+- **`--scan-home`, `--scan-device <mountpoint|key>`, `--stop-scan`** from the
+  command line — the same path as the menu.
+
+### Changed
+
+- The on-demand scan's state no longer lives only in the memory of whoever
+  started it: starting writes `scan.json` (target, medium, when), stopping marks
+  it, and the tray **adopts** any running on-demand scan from it. A scan started
+  from the command line now ends with a notification, one stopped from the
+  command line doesn't claim it "did not finish", and a tray restarted mid-scan
+  no longer loses track of it.
+
 ## [0.4.0] — 2026-10-13
 
 ### Added

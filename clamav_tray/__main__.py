@@ -17,6 +17,12 @@ def main() -> int:
     from . import i18n
     i18n.set_language(cfg.language)
 
+    # Varredura sob demanda pela linha de comando: o mesmo caminho do menu do
+    # tray, usado tambem pelos botoes da extensao do GNOME.
+    from . import commands
+    if (rc := commands.main(sys.argv[1:], cfg)) is not None:
+        return rc
+
     if "--dump" in sys.argv:
         # Diagnostico sem GUI: mostra exatamente o que o tray veria. E tambem o
         # embriao do `clamav-status --json` que a trilha de Rust vai produzir.
@@ -25,14 +31,15 @@ def main() -> int:
         ids = cfg.units or units.discover()
         state = units.query_all(ids)
         if "--json" in sys.argv:
-            import json
-
             from . import __version__, report
 
             job = units.pick_scan_unit(state)
             result = scan.parse_summary(history.last_summary(cfg.scan_log, job.id if job else None, user=bool(job and job.user_scope), output=progress.output_path() if job and job.user_scope else None) or "")
             loose = not any(u.is_running_job for u in state.values()) and units.scan_process_running()
-            print(json.dumps(report.build(cfg, state, job, result, loose, __version__), indent=2, ensure_ascii=False))
+            from . import devices
+            print(report.to_json(report.build(
+                cfg, state, job, result, loose, __version__,
+                media=devices.list_removable(), quarantine=report.quarantine_info(cfg))))
             return 0
         for unit in sorted(state.values(), key=lambda u: u.id):
             extra = f"  ha {scan.human_duration(unit.elapsed_secs)}" if unit.is_running_job and unit.elapsed_secs else ""
@@ -64,7 +71,7 @@ def main() -> int:
         return 1
 
     try:
-        Tray(cfg).run()
+        Tray(cfg, headless="--headless" in sys.argv).run()
     except RuntimeError as err:
         print(f"clamav-tray: {err}", file=sys.stderr)
         return 1
