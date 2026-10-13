@@ -33,6 +33,9 @@ CLAMAV_TRAY_USER=$TARGET_USER
 CLAMAV_TRAY_DIR=/home/$TARGET_USER
 CLAMAV_TRAY_QUARANTINE=/var/quarantine/clamav
 CLAMAV_TRAY_LOG=/var/log/clamav/scan.log
+# Dias entre varreduras completas; nos outros, so o que mudou (incremental).
+CLAMAV_TRAY_FULL_EVERY=7
+CLAMAV_TRAY_DAILY_STATE=/var/lib/clamav-tray-daily
 CONF
 chmod 644 /etc/default/clamav-tray-daily
 
@@ -41,10 +44,12 @@ systemctl enable --now clamav-tray-daily.timer
 
 cat <<MSG
 
-Instalado. A varredura roda as 03:00 (com ate 15 min de atraso aleatorio).
+Instalado. A varredura roda as 03:00 (com ate 15 min de atraso aleatorio):
+completa na primeira vez e a cada 7 dias, incremental nos outros.
 
   ver o agendamento:   systemctl list-timers clamav-tray-daily.timer
   rodar agora:         systemctl start clamav-tray-daily.service
+  forcar completa:     sudo /usr/local/bin/clamav-tray-daily.sh full
   acompanhar:          journalctl -fu clamav-tray-daily.service
   ajustar:             /etc/default/clamav-tray-daily
 
@@ -52,6 +57,7 @@ DESINSTALAR:
   systemctl disable --now clamav-tray-daily.timer
   rm /etc/systemd/system/clamav-tray-daily.{service,timer}
   rm /usr/local/bin/clamav-tray-daily.sh /etc/default/clamav-tray-daily
+  rm -r /var/lib/clamav-tray-daily
   systemctl daemon-reload
 
 A quarentena em /var/quarantine/clamav NAO e removida pelo desinstalador — ela

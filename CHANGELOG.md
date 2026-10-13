@@ -4,6 +4,18 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não lançado]
 
+### Alterado
+
+- **`daily-scan` agora é incremental na maioria dos dias.** Varria a home inteira
+  todo dia — medido, 4h40 sobre 1,1 milhão de arquivos, das 03:12 às 07:54, num
+  SSD que fica inutilizável enquanto isso. Agora o mesmo timer diário varre só o
+  que mudou desde a última varredura concluída (por *ctime*, que não se falsifica
+  com `touch -d`), e a completa roda quando a última tem mais de 7 dias
+  (`CLAMAV_TRAY_FULL_EVERY`). Detalhes e o porquê de cada escolha em
+  `contrib/extras/daily-scan/README.md`. O estado fica em
+  `/var/lib/clamav-tray-daily` (`CLAMAV_TRAY_DAILY_STATE` — nome distinto de
+  `CLAMAV_TRAY_STATE`, que é onde o tray lê as estatísticas da quarentena).
+
 ### Corrigido
 
 - **O alarme escolhia a varredura pelo barramento, não pela data.**

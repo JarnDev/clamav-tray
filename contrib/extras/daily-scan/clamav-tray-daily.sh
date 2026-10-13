@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Varredura diaria da home. Roda como root via systemd.
+# Varredura diaria da home: incremental (so o que mudou) na maioria dos dias,
+# completa a cada CLAMAV_TRAY_FULL_EVERY dias. Roda como root via systemd.
+#
+#   clamav-tray-daily.sh [auto|full|incremental]     (padrao: auto)
 #
 # Generalizado a partir de um script em uso diario desde 22/09/2026. Os numeros
 # nos comentarios sao medidos naquela maquina, nao estimados.
@@ -12,11 +15,17 @@ QUARANTINE="${CLAMAV_TRAY_QUARANTINE:-/var/quarantine/clamav}"
 LOGFILE="${CLAMAV_TRAY_LOG:-/var/log/clamav/scan.log}"
 SOCKET="${CLAMAV_TRAY_SOCKET:-}"
 [ -n "$SOCKET" ] || SOCKET="$(clamconf -n 2>/dev/null | sed -n 's/^LocalSocket = "\(.*\)"$/\1/p' | head -1)"
+STATE_DIR="${CLAMAV_TRAY_DAILY_STATE:-/var/lib/clamav-tray-daily}"
+FULL_EVERY="${CLAMAV_TRAY_FULL_EVERY:-7}"        # dias entre varreduras completas
+MODE="${1:-auto}"                                # auto | full | incremental
 
 RUNLOG="$(mktemp)"; LISTA="$(mktemp)"
-trap 'rm -f "$RUNLOG" "$LISTA"' EXIT
-mkdir -p "$QUARANTINE" "$(dirname "$LOGFILE")"
+mkdir -p "$QUARANTINE" "$(dirname "$LOGFILE")" "$STATE_DIR"
 chmod 750 "$QUARANTINE"
+# Marco de tempo gravado ANTES do find. So vira "ultima varredura" se esta
+# terminar com resumo — ver o fim do arquivo.
+NOVO_MARCO="$(mktemp -p "$STATE_DIR")"
+trap 'rm -f "$RUNLOG" "$LISTA" "$NOVO_MARCO"' EXIT
 
 # Entrega notificacao na sessao grafica. Nunca pode derrubar a unidade.
 notify_user() {
@@ -39,7 +48,38 @@ notify_user() {
 # o ponto de usar clamdscan e justamente nao pagar a carga da base a cada execucao.
 [ -S "$SOCKET" ] || { echo "ABORTADO: clamd fora do ar ($SOCKET)" >> "$LOGFILE"; exit 1; }
 
-echo "===== $(date) - Iniciando em $SCAN_DIR =====" >> "$LOGFILE"
+# MODO. A completa percorre a home inteira (horas, medido: 4h40 sobre 1,1 milhao
+# de arquivos); a incremental so o que mudou desde a ultima varredura concluida
+# (minutos). A completa continua necessaria: a base de assinaturas muda todo dia,
+# e so ela reavalia arquivo antigo contra assinatura nova.
+#
+# Em `auto` (o padrao do timer) a completa roda quando a ultima tem mais de
+# FULL_EVERY dias ou nunca rodou. Por idade e nao por dia da semana: maquina
+# desligada no domingo nao perde a semana, a completa so acontece no dia seguinte.
+MARCO="$STATE_DIR/last-scan"
+MARCO_FULL="$STATE_DIR/last-full"
+if [ "$MODE" = auto ]; then
+    if [ ! -f "$MARCO" ] || [ ! -f "$MARCO_FULL" ] \
+        || [ -n "$(find "$MARCO_FULL" -mtime +"$((FULL_EVERY - 1))" 2>/dev/null)" ]; then
+        MODE=full
+    else
+        MODE=incremental
+    fi
+fi
+case "$MODE" in
+    full) FILTRO=() ;;
+    incremental)
+        [ -f "$MARCO" ] || { echo "ABORTADO: incremental sem varredura anterior ($MARCO)" >> "$LOGFILE"; exit 1; }
+        # -cnewer (ctime), NAO -newer (mtime). O mtime e o usuario quem define:
+        # `touch -d`, `tar x`, `cp -p`, `wget` e `curl -R` gravam a data de origem,
+        # e um arquivo recem-baixado com data de 2019 passaria batido. O ctime so
+        # o kernel escreve, e qualquer escrita, chmod ou rename o atualiza.
+        FILTRO=(-cnewer "$MARCO") ;;
+    *) echo "uso: $0 [auto|full|incremental]" >&2; exit 2 ;;
+esac
+
+echo "===== $(date) - Iniciando ($MODE) em $SCAN_DIR =====" >> "$LOGFILE"
+[ "$MODE" = incremental ] && echo "alterados desde: $(date -r "$MARCO")" >> "$LOGFILE"
 T0=$SECONDS
 
 # EXCLUSOES. Volume enorme, risco desprezivel: binario de jogo assinado pela loja,
@@ -63,7 +103,7 @@ find "$SCAN_DIR" \
     -o -name "node_modules" -o -name ".venv" -o -name "venv" \
     -o -name "__pycache__" -o -name ".cache" \
     -o -path "*/.git/objects" \
-    \) -prune -o -type f -print0 2>/dev/null | tr '\0' '\n' > "$LISTA"
+    \) -prune -o -type f "${FILTRO[@]}" -print0 2>/dev/null | tr '\0' '\n' > "$LISTA"
 
 N_ARQ=$(wc -l < "$LISTA")
 echo "arquivos na fila: $N_ARQ" >> "$LOGFILE"
@@ -72,8 +112,8 @@ clamdscan --fdpass -i --move="$QUARANTINE" --file-list="$LISTA" > "$RUNLOG" 2>&1
 RC=$?
 DUR=$(( SECONDS - T0 ))
 cat "$RUNLOG" >> "$LOGFILE"
-printf '===== %s - Fim (rc=%d) em %dh%02dm, %s arquivos =====\n\n' \
-    "$(date)" "$RC" $((DUR/3600)) $(((DUR%3600)/60)) "$N_ARQ" >> "$LOGFILE"
+printf '===== %s - Fim %s (rc=%d) em %dh%02dm, %s arquivos =====\n\n' \
+    "$(date)" "$MODE" "$RC" $((DUR/3600)) $(((DUR%3600)/60)) "$N_ARQ" >> "$LOGFILE"
 
 # Publica o resumo da quarentena para o tray poder mostrar (ele roda como usuario
 # e nao consegue nem contar dentro de um diretorio 750 de root).
@@ -92,11 +132,16 @@ if [ -z "$INFECTADOS" ]; then
     notify_user "ClamAV" "A varredura nao concluiu (rc=$RC). Veja $LOGFILE"
     exit "${RC:-1}"
 fi
+# Concluiu: o marco do INICIO vira a referencia da proxima incremental. Do inicio,
+# nao do fim — o que mudou durante a varredura entra na proxima. Varredura que
+# nao concluiu nao chega aqui, e a proxima recomeca do marco anterior.
+mv -f "$NOVO_MARCO" "$MARCO"
+[ "$MODE" = full ] && cp -p "$MARCO" "$MARCO_FULL"
 RESSALVA=""
 [ "${ILEGIVEIS:-0}" -gt 0 ] && RESSALVA=" ($ILEGIVEIS ilegivel(is))"
 if [ "$INFECTADOS" -gt 0 ]; then
     notify_user "ClamAV" "$INFECTADOS ameaca(s). Veja $QUARANTINE"
 else
-    notify_user "ClamAV" "Varredura concluida em $((DUR/60)) min. Nenhuma ameaca.$RESSALVA"
+    notify_user "ClamAV" "Varredura $MODE concluida em $((DUR/60)) min, $N_ARQ arquivos. Nenhuma ameaca.$RESSALVA"
 fi
 exit 0

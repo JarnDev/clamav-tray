@@ -2,7 +2,9 @@
 Description=ClamAV daily scan (clamav-tray extra)
 
 [Timer]
-# Madrugada: a varredura percorre a home inteira e satura o disco por horas.
+# Diario, mas o script escolhe o modo: incremental leva minutos; a completa
+# (a cada 7 dias) percorre a home inteira e ocupa o disco por horas — dai a
+# madrugada.
 # RandomizedDelaySec espalha o inicio para nao competir com outros jobs do mesmo
 # horario. Persistent recupera a execucao se a maquina estava desligada.
 OnCalendar=*-*-* 03:00:00
