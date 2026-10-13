@@ -42,7 +42,9 @@ def status(state: dict[str, Unit], result: ScanResult, loose_scan: bool = False)
         return "threat"
     if loose_scan or any(u.is_running_job for u in state.values()):
         return "busy"
-    if any(not u.is_healthy for u in state.values()):
+    # Sem unidade nenhuma, "ok" afirmaria protecao que nao existe — visto num
+    # Fedora recem-instalado, onde nada vem habilitado.
+    if not state or any(not u.is_healthy for u in state.values()):
         return "warn"
     return "ok"
 

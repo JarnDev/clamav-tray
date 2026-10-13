@@ -29,6 +29,7 @@ CATALOGS: dict[str, dict[str, str]] = {
         "Threat detected": "Ameaça detectada",
         "{n} file(s) quarantined": "{n} arquivo(s) em quarentena",
         "{names} not healthy": "{names} com problema",
+        "no ClamAV service found": "nenhum serviço do ClamAV encontrado",
         "and {n} more": "e mais {n}",
         # Secoes
         "Scan": "Varredura",

@@ -74,7 +74,7 @@ mesma saída.
 |---|---|---|
 | `schema` | int | versão deste formato |
 | `version` | string | versão do clamav-tray que gerou |
-| `status` | `"ok"` \| `"busy"` \| `"warn"` \| `"threat"` | a mesma precedência do ícone: ameaça > varrendo > serviço caído > ok |
+| `status` | `"ok"` \| `"busy"` \| `"warn"` \| `"threat"` | a mesma precedência do ícone: ameaça > varrendo > serviço caído > ok. **Nenhuma unidade encontrada é `warn`**, não `ok` |
 
 `status` **não** inclui mídia removível pendente: "pendente" depende do que o tray
 já varreu na sessão dele, que fica na memória do processo, não no sistema.

@@ -37,9 +37,17 @@ projeto é justamente ler o estado das unidades.
 ## Instalação
 
 ```sh
-sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1   # Debian/Ubuntu
+# 1. dependências de sistema — escolha a sua distro
+sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1 pipx                  # Debian/Ubuntu
+sudo dnf install python3-gobject gtk3 libayatana-appindicator-gtk3 pipx            # Fedora
+sudo pacman -S python-gobject gtk3 libayatana-appindicator python-pipx             # Arch
+
+# 2. o programa
 pipx install --system-site-packages clamav-tray
 ```
+
+Os três comandos foram conferidos em containers limpos (Ubuntu 24.04, Fedora e
+Arch atuais), com o systemd rodando, instalando o pacote e lendo as unidades.
 
 **`--system-site-packages` é obrigatório.** O PyGObject (`gi`) vem da distro, não
 do pip — compilá-lo num virtualenv exige toolchain e os cabeçalhos do GTK. Sem a
@@ -51,6 +59,20 @@ isso e diz como corrigir.
 tenta os dois).
 
 Do código-fonte: clone e `pipx install --system-site-packages .`
+
+### Antes: o ClamAV precisa estar no ar
+
+O tray **observa** as unidades do ClamAV; não as cria. Se nenhuma for encontrada,
+ele diz isso ("nenhum serviço do ClamAV encontrado") em vez de mostrar o escudo
+verde. Duas armadilhas conferidas:
+
+- **Fedora** não habilita nada, e o `/etc/clamd.d/scan.conf` vem com o
+  `LocalSocket` **comentado**. Descomente `LocalSocket` (e `LogFile`, se quiser o
+  log), rode `sudo freshclam` e então `sudo systemctl enable --now clamd@scan`.
+- **Arch** (e o pacote upstream): o `clamav-daemon.service` tem
+  `ConditionPathExistsGlob` para a base de assinaturas. Sem `sudo freshclam`
+  antes, a unidade "inicia" sem erro, fica inativa e some da lista do systemd.
+  Rode `freshclam` primeiro, depois `sudo systemctl enable --now clamav-daemon`.
 
 ### Subir sozinho no login
 

@@ -175,7 +175,7 @@ class Tray:
             key, mark = "threat", widgets.BAD
         elif running or loose_scan:
             key, mark = "busy", widgets.BUSY
-        elif broken:
+        elif broken or not state:
             key, mark = "warn", widgets.WARN
         elif pending:
             # Midia plugada e nao varrida e um estado proprio: nao e falha, mas
@@ -296,12 +296,17 @@ class Tray:
             return f"⚠ {len(broken)}" if len(broken) > 1 else "⚠"
         return ""
 
-    def _headline(self, running, broken, result, loose=False) -> tuple[str, str]:
+    def _headline(self, running, broken, result, loose=False, empty=False) -> tuple[str, str]:
         if result.is_alarming:
             n = result.infected
             return (_("Threat detected"), _("{n} file(s) quarantined", n=n))
         if running or loose:
             return (_("Scanning"), "")
+        if empty:
+            # Nenhuma unidade clam* carregada. Visto num Fedora recem-instalado:
+            # nada vem habilitado, e o menu dizia "Protegido, todos os servicos no
+            # ar" sobre servico nenhum. Ausencia de servico nao e protecao.
+            return (_("Attention"), _("no ClamAV service found"))
         if broken:
             nomes = ", ".join(self.cfg.label_for(u.id) for u in broken[:2])
             resto = " " + _("and {n} more", n=len(broken) - 2) if len(broken) > 2 else ""
@@ -446,9 +451,9 @@ class Tray:
 
         # O alarme vem da mais recente; o resto, da completa.
         alarme = latest if latest.is_alarming else estado
-        title, subtitle = self._headline([], broken, alarme)
+        title, subtitle = self._headline([], broken, alarme, empty=not state)
         rows = [widgets.status_row(title, "", mark)]
-        if subtitle and (broken or alarme.is_alarming):
+        if subtitle and (broken or alarme.is_alarming or not state):
             rows.append(widgets.line(subtitle))
 
         if full is not None and full.finished_at:

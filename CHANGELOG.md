@@ -32,11 +32,19 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - `packaging/install-autostart.sh` passa a só encaminhar para
   `clamav-tray --install-autostart`, com os mesmos argumentos. Agora pergunta
   antes de gravar, e sem terminal recusa em vez de gravar direto.
+- README com o comando de instalação de Debian/Ubuntu, Fedora e Arch, conferidos
+  em containers limpos com systemd, e as duas armadilhas de configuração que
+  eles mostraram (socket comentado no Fedora; unidade que some sem a base de
+  assinaturas no Arch).
 - O autostart grava `~/.local/bin/clamav-tray` (o link do pipx) em vez do
   caminho dentro do venv, que muda se o pipx recriar o ambiente.
 
 ### Corrigido
 
+- **Sem nenhum serviço do ClamAV, o tray mostrava escudo verde**: "Protegido,
+  todos os serviços no ar" sobre serviço nenhum. Visto num Fedora recém-instalado,
+  que não habilita nada. Agora é "Atenção — nenhum serviço do ClamAV encontrado",
+  e o `status` do JSON é `warn`.
 - **Sem tela, o programa abortava com core dump.** O GTK não falha sem
   `DISPLAY`: aborta (`Gtk-ERROR`) no primeiro widget. Agora `Gtk.init_check()`
   é conferido antes, e o programa diz o que falta e sai com código 1. Cobre

@@ -40,14 +40,15 @@ de qualquer recurso novo.
 - [x] **Autostart sem clonar.** `clamav-tray --install-autostart`, com os modelos dentro do
       pacote e a mesma conferência de `is-active` do script — e `--show-autostart` para
       inspecionar destino e conteúdo antes de permitir.
-- [x] **Sem tela, mensagem em vez de core dump.** Sem `DISPLAY`/`WAYLAND_DISPLAY`, o GTK aborta
-      (`Gtk-ERROR`, processo derrubado). Conferir antes de importar o GTK.
+- [x] **Sem tela, mensagem em vez de core dump.** O GTK abortava sem `DISPLAY`; agora
+      `Gtk.init_check()` é conferido antes, cobrindo também `DISPLAY` que aponta para o nada.
 - [x] **`--dump --json`**, saída estável para script e para o Glance/Conky. É também o contrato
       que o `clamav-status` da Trilha 2 vai cumprir — escrevê-lo em Python primeiro fixa o formato.
-- [x] **Notificação ao terminar a varredura sob demanda**, pelo próprio tray. Hoje só os extras
-      notificam, e a varredura que o usuário mandou rodar termina em silêncio.
-- [ ] **Validar Fedora e Arch numa instalação real.** A descoberta foi escrita para
-      `clamd@scan.service` e para os caminhos do Arch, mas só rodou de verdade no Ubuntu.
+- [x] **Notificação ao terminar a varredura sob demanda**, pelo próprio tray, via D-Bus e sem
+      dependência nova — distinguindo ameaça isolada de ameaça encontrada e não isolada.
+- [x] **Validar Fedora e Arch.** Em containers com systemd: a descoberta acha `clamd@scan`
+      (Fedora) e `clamav-daemon` (Arch), o `clamconf` dá os caminhos certos nos dois. E mostrou
+      um bug: sem serviço nenhum, o tray dizia "Protegido" — corrigido.
 
 ## v0.4 — extras
 

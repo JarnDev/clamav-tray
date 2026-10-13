@@ -97,6 +97,8 @@ def test_status_segue_a_precedencia_do_icone():
     assert status(_estado(RODANDO, DAEMON), LIMPA) == "busy"
     assert status(_estado(DAEMON_CAIDO), LIMPA) == "warn"
     assert status(_estado(DAEMON, TIMER, AGENDADA), LIMPA) == "ok"
+    # Nenhuma unidade (Fedora recem-instalado: nada vem habilitado) nao e "ok".
+    assert status({}, parse_summary("")) == "warn"
     # Varredura lancada fora do systemd tambem e trabalho em andamento.
     assert status(_estado(DAEMON), LIMPA, loose_scan=True) == "busy"
 
