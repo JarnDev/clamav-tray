@@ -47,7 +47,9 @@ pipx install --system-site-packages clamav-tray
 ```
 
 Os três comandos foram conferidos em containers limpos (Ubuntu 24.04, Fedora e
-Arch atuais), com o systemd rodando, instalando o pacote e lendo as unidades.
+Arch atuais), instalando o pacote. No Fedora e no Arch o container rodava o
+systemd, e a descoberta das unidades foi conferida ao vivo; no Ubuntu, ela é a
+de uso diário na máquina de origem.
 
 **`--system-site-packages` é obrigatório.** O PyGObject (`gi`) vem da distro, não
 do pip — compilá-lo num virtualenv exige toolchain e os cabeçalhos do GTK. Sem a
