@@ -41,6 +41,11 @@ jobs:
         run: |
           pip install -q pyflakes
           if python -m pyflakes clamav_tray tests | grep -E "undefined name|referenced before assignment"; then exit 1; fi
+      - name: Docs EN e PT-BR em sincronia
+        # Cada X.md tem um X.pt-BR.md ao lado (exceto o CHANGELOG, so em ingles).
+        # Mesmo numero de titulos e de blocos de codigo nos dois: pega "mudou um
+        # idioma e esqueceu o outro". Nao confere a traducao em si.
+        run: python scripts/check-docs-i18n.py
       - name: Sintaxe dos scripts de shell
         run: |
           for f in $(git ls-files '*.sh'); do bash -n "$f" || exit 1; done
