@@ -44,7 +44,7 @@ de qualquer recurso novo.
       (`Gtk-ERROR`, processo derrubado). Conferir antes de importar o GTK.
 - [x] **`--dump --json`**, saída estável para script e para o Glance/Conky. É também o contrato
       que o `clamav-status` da Trilha 2 vai cumprir — escrevê-lo em Python primeiro fixa o formato.
-- [ ] **Notificação ao terminar a varredura sob demanda**, pelo próprio tray. Hoje só os extras
+- [x] **Notificação ao terminar a varredura sob demanda**, pelo próprio tray. Hoje só os extras
       notificam, e a varredura que o usuário mandou rodar termina em silêncio.
 - [ ] **Validar Fedora e Arch numa instalação real.** A descoberta foi escrita para
       `clamd@scan.service` e para os caminhos do Arch, mas só rodou de verdade no Ubuntu.

@@ -92,6 +92,17 @@ CATALOGS: dict[str, dict[str, str]] = {
         "{n} threats found": "{n} ameaças encontradas",
         "{n} unreadable file": "{n} arquivo ilegível",
         "{n} unreadable files": "{n} arquivos ilegíveis",
+        # Notificacao de fim da varredura sob demanda
+        "Scan finished": "Varredura concluída",
+        "Scan did not finish": "A varredura não concluiu",
+        "Threats found": "Ameaças encontradas",
+        "Threats found, not contained": "Ameaças encontradas e não isoladas",
+        "{n} threat in {target}": "{n} ameaça em {target}",
+        "{n} threats in {target}": "{n} ameaças em {target}",
+        "{n} threat in {target}, quarantined": "{n} ameaça em {target}, isolada na quarentena",
+        "{n} threats in {target}, quarantined": "{n} ameaças em {target}, isoladas na quarentena",
+        "{n} file could not be quarantined": "{n} arquivo não pôde ir para a quarentena",
+        "{n} files could not be quarantined": "{n} arquivos não puderam ir para a quarentena",
         # Acoes
         "Scan my home now": "Varrer minha home agora",
         "Scan my home": "Varrer a home",

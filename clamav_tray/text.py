@@ -51,3 +51,29 @@ def relative_time(when: datetime) -> str:
     if prefix := {0: "today", -1: "yesterday", 1: "tomorrow"}.get(delta):
         return f"{_(prefix)} {local:%H:%M}"
     return f"{local:%d/%m %H:%M}"
+
+
+def scan_finished(target: str, result: ScanResult, stuck: int = 0,
+                  completed: bool = True) -> tuple[str, str, bool]:
+    """(titulo, corpo, urgente) da notificacao de fim da varredura sob demanda.
+
+    `stuck` = ameacas encontradas que NAO puderam ser isoladas (midia somente
+    leitura). Encontrar e isolar sao coisas diferentes, e dizer "isolado" sobre
+    um arquivo que continua no pendrive seria afirmar contencao falsa.
+    """
+    if not completed:
+        return _("Scan did not finish"), target, False
+    if result.verdict is Verdict.INFECTED:
+        n = result.infected
+        if stuck:
+            # Chaves separadas para singular e plural: o portugues concorda em
+            # numero ("nao pode"/"nao puderam"), e concatenar sufixo fixo errava.
+            body = _("{n} threat in {target}" if n == 1 else "{n} threats in {target}",
+                     n=n, target=target)
+            body += " — " + _("{n} file could not be quarantined" if stuck == 1
+                              else "{n} files could not be quarantined", n=stuck)
+            return _("Threats found, not contained"), body, True
+        body = _("{n} threat in {target}, quarantined" if n == 1
+                 else "{n} threats in {target}, quarantined", n=n, target=target)
+        return _("Threats found"), body, True
+    return _("Scan finished"), f"{target}: {describe(result)}", False

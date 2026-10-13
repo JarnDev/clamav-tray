@@ -32,7 +32,7 @@ for _lib, _ver in (("AyatanaAppIndicator3", "0.1"), ("AppIndicator3", "0.1")):
     except (ValueError, ImportError, KeyError):
         continue
 
-from . import (actions, config as config_mod, devices, history, progress,  # noqa: E402
+from . import (actions, config as config_mod, devices, history, notify, progress,  # noqa: E402
                quarantine, scan, text, units, widgets)
 from .config import Config  # noqa: E402
 from . import i18n  # noqa: E402
@@ -99,6 +99,8 @@ class Tray:
         # pendrive. Cada escopo guarda o proprio desfecho.
         self._last_home: tuple | None = None
         self._scanning_home = False
+        # Parada pelo usuario nao notifica "nao concluiu": ele acabou de pedir isso.
+        self._stopped = False
         self.indicator = _INDICATOR.Indicator.new(
             "clamav-tray", ICONS["ok"], _INDICATOR.IndicatorCategory.SYSTEM_SERVICES
         )
@@ -141,7 +143,9 @@ class Tray:
         # 57% — e continuaria assim se a varredura fosse cancelada.
         if (self._scanning_key or self._scanning_home) and job and not job.is_running_job:
             # Achou virus tambem conta como varrido: o alvo FOI conferido.
-            if job.result in ("success", "unknown") or job.found_threats:
+            concluded = job.result in ("success", "unknown") or job.found_threats
+            presas = 0
+            if concluded:
                 # found - moved = ameacas que NAO puderam ser isoladas. Midia
                 # somente leitura e o caso comum: o clamdscan acha, falha ao
                 # remover e ainda assim reporta "Infected files: N".
@@ -151,8 +155,15 @@ class Tray:
                     self._scanned[self._scanning_key] = registro
                 else:
                     self._last_home = registro
+            # A varredura que o usuario mandou rodar terminava em silencio: o
+            # resultado so aparecia se ele abrisse o menu. Esta e a hora de avisar.
+            if not self._stopped:
+                titulo, corpo, urgente = text.scan_finished(
+                    _shorten(self._scan_target or Path.home()), result, presas, concluded)
+                notify.send(titulo, corpo, ICONS["threat" if urgente else "ok"], urgente)
             self._scanning_key = None
             self._scanning_home = False
+            self._stopped = False
 
         media = devices.list_removable()
         pending = [d for d in media if d.key not in self._scanned]
@@ -572,6 +583,7 @@ class Tray:
         self._scan_target = Path.home()
         self._scanning_home = True
         self._scanning_key = None
+        self._stopped = False
         # A lista acabou de ser escrita; guardar o total e o que da escala a barra.
         self._list_total = progress.count_lines(progress.list_path()) or None
 
@@ -584,10 +596,12 @@ class Tray:
         if actions.start_scan(dev.mountpoint, self.cfg.socket, dest, excludes=[]):
             self._scanning_key = dev.key
             self._scanning_home = False
+            self._stopped = False
             self._scan_target = dev.mountpoint
             self._list_total = progress.count_lines(progress.list_path()) or None
 
     def _on_stop(self, *_a):
+        self._stopped = True
         actions.stop_scan()
 
     def _on_quarantine_system(self, *_a):

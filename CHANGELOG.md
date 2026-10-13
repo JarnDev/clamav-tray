@@ -21,6 +21,11 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   Mostra destino, comando, o arquivo inteiro e os `systemctl` que viriam — ou a
   diferença, se já houver arquivo — sem gravar nada. O instalador mostra o mesmo
   e só grava com confirmação; fora de terminal, só com `--yes`.
+- **Notificação ao terminar a varredura sob demanda** (home ou mídia), pelo
+  próprio tray: limpa, ameaças isoladas, ou ameaças encontradas e **não**
+  isoladas (mídia somente leitura) — esta última urgente. Parar a varredura de
+  propósito não notifica. Fala direto com `org.freedesktop.Notifications` via
+  Gio, sem dependência nova; sem servidor de notificação, segue sem avisar.
 
 ### Alterado
 

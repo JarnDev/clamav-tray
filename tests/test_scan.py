@@ -115,3 +115,35 @@ def test_duracao_usa_a_unidade_mais_grossa_que_informa():
     assert human_duration(45) == "45s"
     assert human_duration(720) == "12m"
     assert human_duration(16317) == "4h31"
+
+
+def test_notificacao_de_fim():
+    from clamav_tray.text import scan_finished
+    set_language("en")
+    limpa = parse_summary(REAL_CLEAN_WITH_ERRORS)
+    infectada = parse_summary(REAL_INFECTED)
+
+    titulo, corpo, urgente = scan_finished("~", limpa)
+    assert titulo == "Scan finished" and not urgente
+    assert corpo.startswith("~: clean") and "6 unreadable files" in corpo
+
+    titulo, corpo, urgente = scan_finished("/media/u/PEN", infectada)
+    assert titulo == "Threats found" and urgente
+    assert corpo == "1 threat in /media/u/PEN, quarantined"
+
+    # Midia somente leitura: encontrou e NAO isolou. Dizer "movidas para a
+    # quarentena" aqui seria afirmar contencao que nao aconteceu.
+    titulo, corpo, urgente = scan_finished("/media/u/CD", infectada, stuck=1)
+    assert titulo == "Threats found, not contained" and urgente
+    assert corpo == "1 threat in /media/u/CD — 1 file could not be quarantined"
+
+    titulo, corpo, urgente = scan_finished("~", parse_summary(""), completed=False)
+    assert titulo == "Scan did not finish" and not urgente
+
+    set_language("pt_BR")
+    titulo, corpo, _ = scan_finished("/media/u/PEN", infectada)
+    assert titulo == "Ameaças encontradas"
+    assert corpo == "1 ameaça em /media/u/PEN, isolada na quarentena"
+    _, corpo, _ = scan_finished("/media/u/CD", infectada, stuck=1)
+    assert corpo == "1 ameaça em /media/u/CD — 1 arquivo não pôde ir para a quarentena"
+    set_language("en")
