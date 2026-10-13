@@ -52,7 +52,38 @@ de qualquer recurso novo.
       (Fedora) e `clamav-daemon` (Arch), o `clamconf` dá os caminhos certos nos dois. E mostrou
       um bug: sem serviço nenhum, o tray dizia "Protegido" — corrigido.
 
-## v0.4 — extras
+## v0.4 — documentação em dois idiomas (13/10/2026)
+
+- [x] Inglês por padrão, português do Brasil ao lado (`X.pt-BR.md`), conferido no CI
+- [x] Números seguem o idioma da interface (`14.9 GB` / `14,9 GB`)
+
+## v0.5 — painel GNOME (em andamento, branch `feat/gnome-extension`)
+
+Uma extensão opcional do GNOME Shell que desenha um painel rico — barra de progresso de
+verdade, cores, cartões — sobre o estado que o programa já publica. O tray continua
+funcionando em qualquer desktop; a extensão só **lê e desenha**, e os botões dela chamam o
+`clamav-tray`. Toda a lógica fica no Python. Só entra na `main` depois dos testes de aceite.
+
+- [x] **F0 — prova de conceito.** Um GNOME Shell aninhado, isolado da sessão real (D-Bus,
+      dconf e pastas de extensão próprios: `scripts/dev-nested-shell.sh`), carrega um botão na
+      barra; três ciclos de desligar e religar não deixam nada para trás.
+- [ ] **F1 — lado Python.** O tray grava `state.json` em `$XDG_RUNTIME_DIR` de forma atômica a
+      cada atualização; campos novos no JSON (`scan.progress`, `media`, `quarantine`) sem subir
+      o schema; `--headless` (sem ícone na bandeja) e comandos de ação (`--scan-home`,
+      `--stop-scan`, `--scan-device`).
+- [ ] **F2 — extensão só leitura.** Ícone com a cor do estado; painel com cabeçalho, serviços e
+      última varredura. JSON → modelo de tela num módulo puro testado com `gjs` no CI.
+- [ ] **F3 — ao vivo.** Barra de progresso real, cartões de mídia e quarentena; volta a
+      consultar `--dump --json` quando o arquivo de estado envelhece.
+- [ ] **F4 — ações.** Os botões do painel chamam os comandos da F1.
+- [ ] **F5 — instalação e documentação.** `--show-gnome-extension` / `--install-gnome-extension`,
+      inspecionar antes de permitir, como no autostart; documentação nos dois idiomas.
+- [ ] **F6 — lançamento 0.5.0.** Publicar no extensions.gnome.org é decisão separada.
+
+Só versões do GNOME realmente testadas entram no `metadata.json`: um GNOME novo desativa a
+extensão em vez de quebrar a barra, e o tray normal assume.
+
+## v0.6 — extras
 
 - [ ] `daily-scan`: modo **sistema inteiro** opcional, além da home, com exclusões próprias
       (`/proc`, `/sys`, `/var/lib/docker`, snaps, modelos de IA). Exige pensar no custo: a

@@ -1,0 +1,8 @@
+{
+  "uuid": "clamav-tray@jarndev.github.io",
+  "name": "ClamAV Tray",
+  "description": "ClamAV status in the GNOME top bar. A thin layer over the clamav-tray program: it reads the state the program publishes and draws it; all logic stays in clamav-tray.",
+  "shell-version": ["46"],
+  "url": "https://github.com/JarnDev/clamav-tray",
+  "version-name": "0.0.1"
+}

@@ -52,7 +52,38 @@ before any new feature.
       (Fedora) and `clamav-daemon` (Arch), and `clamconf` gives the right paths on both. It also
       exposed a bug: with no service at all, the tray said "Protected" — fixed.
 
-## v0.4 — extras
+## v0.4 — documentation in two languages (2026-10-13)
+
+- [x] English by default, Brazilian Portuguese next to it (`X.pt-BR.md`), checked in CI
+- [x] Numbers follow the interface language (`14.9 GB` / `14,9 GB`)
+
+## v0.5 — GNOME panel (in progress, branch `feat/gnome-extension`)
+
+An optional GNOME Shell extension that draws a rich panel — real progress bar, colors,
+cards — on top of the state the program already publishes. The tray keeps working on any
+desktop; the extension only **reads and draws**, and its buttons call `clamav-tray`. All
+logic stays in Python. Merged into `main` only after acceptance tests.
+
+- [x] **F0 — proof of concept.** A nested GNOME Shell, isolated from the real session (own
+      D-Bus, dconf and extension dirs: `scripts/dev-nested-shell.sh`), loads a bar button;
+      three disable/enable cycles leave nothing behind.
+- [ ] **F1 — Python side.** The tray writes `state.json` to `$XDG_RUNTIME_DIR` atomically on
+      every refresh; new JSON fields (`scan.progress`, `media`, `quarantine`) without a schema
+      bump; `--headless` (no tray icon) and action commands (`--scan-home`, `--stop-scan`,
+      `--scan-device`).
+- [ ] **F2 — read-only extension.** Status-colored icon; panel with header, services and last
+      scan. JSON → view model in a pure module tested with `gjs` in CI.
+- [ ] **F3 — live.** Real progress bar, media and quarantine cards; falls back to polling
+      `--dump --json` when the state file goes stale.
+- [ ] **F4 — actions.** Panel buttons call the F1 commands.
+- [ ] **F5 — install and docs.** `--show-gnome-extension` / `--install-gnome-extension`,
+      inspect before allowing, as with autostart; docs in both languages.
+- [ ] **F6 — release 0.5.0.** Publishing on extensions.gnome.org is a separate decision.
+
+Only GNOME versions actually tested go into `metadata.json`: a new GNOME disables the
+extension instead of breaking the bar, and the normal tray takes over.
+
+## v0.6 — extras
 
 - [ ] `daily-scan`: optional **whole-system** mode, beyond home, with its own exclusions
       (`/proc`, `/sys`, `/var/lib/docker`, snaps, AI models). Needs thought about cost: the
