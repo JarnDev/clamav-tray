@@ -19,6 +19,16 @@ def main() -> int:
 
         ids = cfg.units or units.discover()
         state = units.query_all(ids)
+        if "--json" in sys.argv:
+            import json
+
+            from . import __version__, report
+
+            job = units.pick_scan_unit(state)
+            result = scan.parse_summary(history.last_summary(cfg.scan_log, job.id if job else None, user=bool(job and job.user_scope), output=progress.output_path() if job and job.user_scope else None) or "")
+            loose = not any(u.is_running_job for u in state.values()) and units.scan_process_running()
+            print(json.dumps(report.build(cfg, state, job, result, loose, __version__), indent=2, ensure_ascii=False))
+            return 0
         for unit in sorted(state.values(), key=lambda u: u.id):
             extra = f"  ha {scan.human_duration(unit.elapsed_secs)}" if unit.is_running_job and unit.elapsed_secs else ""
             print(f"{unit.id:34} {unit.kind.value:7} {unit.active_state:10} {unit.sub_state:10}{extra}")

@@ -42,7 +42,7 @@ de qualquer recurso novo.
       com a mesma conferência de `is-active` do script.
 - [x] **Sem tela, mensagem em vez de core dump.** Sem `DISPLAY`/`WAYLAND_DISPLAY`, o GTK aborta
       (`Gtk-ERROR`, processo derrubado). Conferir antes de importar o GTK.
-- [ ] **`--dump --json`**, saída estável para script e para o Glance/Conky. É também o contrato
+- [x] **`--dump --json`**, saída estável para script e para o Glance/Conky. É também o contrato
       que o `clamav-status` da Trilha 2 vai cumprir — escrevê-lo em Python primeiro fixa o formato.
 - [ ] **Notificação ao terminar a varredura sob demanda**, pelo próprio tray. Hoje só os extras
       notificam, e a varredura que o usuário mandou rodar termina em silêncio.

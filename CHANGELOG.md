@@ -11,6 +11,9 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   árvore limpa, sincronizado com a `origin`, CI verde, testes), sobe a versão nos
   dois arquivos, fecha o CHANGELOG, faz commit e tag assinados e envia por SSH.
   O ambiente `pypi` agora exige aprovação manual e só aceita tags `v*`.
+- **`clamav-tray --dump --json`**: o estado que o tray enxerga, como dado, para
+  script, Glance, Conky ou `jq`. Formato versionado (`schema`), documentado em
+  `docs/json.md` e travado por `tests/test_report.py`. Não precisa de tela.
 
 ### Corrigido
 

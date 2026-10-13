@@ -107,6 +107,17 @@ e abre no seu editor. O arquivo é **relido sozinho ao salvar**.
 Nada é obrigatório — o programa descobre as unidades pelo glob `clam*` e os
 caminhos pelo `clamconf`.
 
+## Para scripts e painéis
+
+```sh
+clamav-tray --dump            # o que o tray veria, em texto
+clamav-tray --dump --json     # o mesmo, como dado — formato estável
+clamav-tray --dump --json | jq -r .status    # ok | busy | warn | threat
+```
+
+Não precisa de tela nem de PyGObject. O JSON é um contrato versionado (campo
+`schema`), descrito em [docs/json.md](https://github.com/JarnDev/clamav-tray/blob/main/docs/json.md).
+
 ## Idioma
 
 **Inglês é o padrão e a fonte.** Traduzir é opcional por construção: chave sem
@@ -130,6 +141,7 @@ nenhuma. Não usa gettext de propósito; o porquê está em
 | [docs/dbusmenu.md](https://github.com/JarnDev/clamav-tray/blob/main/docs/dbusmenu.md) | o que atravessa o protocolo do menu, e o que não |
 | [docs/quarantine.md](https://github.com/JarnDev/clamav-tray/blob/main/docs/quarantine.md) | as duas quarentenas e a convenção de estatísticas |
 | [docs/progress.md](https://github.com/JarnDev/clamav-tray/blob/main/docs/progress.md) | progresso por contagem, não por relógio |
+| [docs/json.md](https://github.com/JarnDev/clamav-tray/blob/main/docs/json.md) | o formato do `--dump --json` e o que é estável nele |
 | [docs/removable-media.md](https://github.com/JarnDev/clamav-tray/blob/main/docs/removable-media.md) | detecção sem subprocesso |
 | [ROADMAP.md](https://github.com/JarnDev/clamav-tray/blob/main/ROADMAP.md) | o produto, e a migração para Rust |
 | [CONTRIBUTING.md](https://github.com/JarnDev/clamav-tray/blob/main/CONTRIBUTING.md) | como contribuir |
