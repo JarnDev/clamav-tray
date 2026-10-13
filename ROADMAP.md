@@ -7,29 +7,78 @@ para mim. **A segunda nunca atrasa nem degrada a primeira.**
 
 # Trilha 1 — o produto (Python, branch `main`)
 
-## v0.1 — o que existe
+Os números abaixo são os do [CHANGELOG](CHANGELOG.md) e do PyPI. Versão futura é intenção, não
+promessa: item sobe ou desce conforme o uso real mostrar.
+
+## v0.1 — a base (25/09/2026)
 
 - [x] Estado das unidades, detectadas pelo glob `clam*`
 - [x] Distinção **daemon** × **tarefa** pelo `Type=` da unidade
       (`simple` = rodando é saudável; `oneshot` = rodando é *em execução*)
-- [x] Varredura em andamento, com tempo decorrido
 - [x] Resultado da última varredura, lido do `SCAN SUMMARY` do próprio clamdscan
-- [x] Ícone reflete o estado
-- [x] Ações: varredura sob demanda, abrir quarentena, ver logs
-- [x] Caminhos vindos do `clamconf`
+- [x] Varredura sob demanda (home e mídia removível) como unidade transitória
+- [x] Ícone reflete o estado; caminhos vindos do `clamconf`
+- [x] Config TOML (`~/.config/clamav-tray/config.toml`)
+- [x] Traduções, com inglês como fonte e pt_BR completo
+- [x] Duas quarentenas com donos distintos, e mídia removível detectada sem subprocesso
+- [x] Extras opcionais em `contrib/extras/` e autostart por serviço de usuário
 
-## v0.2 — arestas conhecidas
+## v0.2 — primeira publicada (13/10/2026)
 
-- [ ] Config TOML de verdade (hoje só há o exemplo)
-- [ ] Notificação ao terminar uma varredura, não só no menu
-- [ ] Ícone com badge de progresso quando dá para estimar
-- [ ] Traduções — o projeto nasceu em português e está em inglês na interface
+- [x] No PyPI: `pipx install --system-site-packages clamav-tray`
+- [x] Barra de progresso por **contagem** de arquivos, legível no tamanho real
+- [x] Alarme escolhe a varredura pela data, não pelo barramento
+- [x] `daily-scan` incremental (por ctime) todo dia, completa a cada 7
+- [x] Sem PyGObject, o programa diz como corrigir em vez de despejar traceback
+- [x] `scripts/release.sh`: lançamento em um comando, publicação com aprovação manual
 
-## v0.3 — o que pedem mas eu ainda não sei se quero
+## v0.3 — arestas que o empacotamento expôs
+
+Quem instala pelo PyPI tem uma experiência pior que quem clona. Fechar essa diferença vem antes
+de qualquer recurso novo.
+
+- [ ] **Autostart sem clonar.** O `install-autostart.sh` não vai no pacote; quem instalou por
+      pipx precisa do repositório só para isso. Caminho provável: `clamav-tray --install-autostart`,
+      com a mesma conferência de `is-active` do script.
+- [ ] **Sem tela, mensagem em vez de core dump.** Sem `DISPLAY`/`WAYLAND_DISPLAY`, o GTK aborta
+      (`Gtk-ERROR`, processo derrubado). Conferir antes de importar o GTK.
+- [ ] **`--dump --json`**, saída estável para script e para o Glance/Conky. É também o contrato
+      que o `clamav-status` da Trilha 2 vai cumprir — escrevê-lo em Python primeiro fixa o formato.
+- [ ] **Notificação ao terminar a varredura sob demanda**, pelo próprio tray. Hoje só os extras
+      notificam, e a varredura que o usuário mandou rodar termina em silêncio.
+- [ ] **Validar Fedora e Arch numa instalação real.** A descoberta foi escrita para
+      `clamd@scan.service` e para os caminhos do Arch, mas só rodou de verdade no Ubuntu.
+
+## v0.4 — extras
+
+- [ ] `daily-scan`: modo **sistema inteiro** opcional, além da home, com exclusões próprias
+      (`/proc`, `/sys`, `/var/lib/docker`, snaps, modelos de IA). Exige pensar no custo: a
+      completa da home sozinha já leva horas num SSD SATA.
+- [ ] `daily-scan`: a completa semanal com **notificação só quando algo muda**, para que o
+      alarme diário não vire ruído.
+- [ ] Teste automatizado dos scripts de `contrib/` (hoje: só `bash -n` no CI e teste manual
+      contra o clamd real).
+
+## Distribuição — por demanda, não por data
+
+O PyPI cobre quem tem pipx. Pacote de distro é trabalho recorrente (um build por versão de
+distro, assinatura, revisão), e só se paga com gente usando.
+
+| Canal | Quando | Por quê nessa ordem |
+|---|---|---|
+| **AUR** | primeiro pedido de usuário Arch | um `PKGBUILD`; o mais barato de manter |
+| **`.deb` / PPA** | uso real recorrente no Debian/Ubuntu | resolve as dependências do apt num passo, mas é o mais caro |
+| **Flathub** | provavelmente nunca | o sandbox briga com a premissa: ler systemd e `/proc` do host |
+
+Os extras de `contrib/` ficam **fora** de qualquer pacote do programa: instalam unidade de sistema
+como root, e o tray é instalável sem privilégio por decisão. Se um dia fizer sentido, vão num
+pacote separado e opcional.
+
+## Em aberto, sem versão — o que pedem mas eu ainda não sei se quero
 
 - [ ] Ações de serviço (start/stop/restart) — exige polkit, e aumenta muito a superfície
 - [ ] Múltiplas instâncias `clamd@` no Fedora, lado a lado
-- [ ] Suporte a `clamonacc` (varredura em acesso)
+- [ ] Suporte a `clamonacc` (varredura em acesso) além de mostrar a unidade
 
 ## Fora de escopo, por decisão
 
