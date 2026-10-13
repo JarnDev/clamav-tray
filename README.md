@@ -223,7 +223,7 @@ branch is a personal exercise and may be force-rewritten at any time.
 
 ## Status
 
-0.3, on PyPI, in daily use by one person. Published because the niche was empty, not
+On PyPI, in daily use by one person. Published because the niche was empty, not
 because it is mature. If you use it, expect rough edges — and open an issue.
 
 ## License

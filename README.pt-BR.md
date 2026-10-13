@@ -219,7 +219,7 @@ e pode ser portado sozinho. A ordem e o critério estão no [ROADMAP](https://gi
 
 ## Estado
 
-0.3, no PyPI, em uso diário por uma pessoa. Publicado porque o nicho estava vazio, não
+No PyPI, em uso diário por uma pessoa. Publicado porque o nicho estava vazio, não
 porque seja maduro. Se você usar, espere arestas — e abra issue.
 
 ## Licença
