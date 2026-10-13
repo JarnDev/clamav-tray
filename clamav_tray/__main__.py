@@ -30,6 +30,20 @@ def main() -> int:
 
     try:
         from .tray import Tray
+    except ModuleNotFoundError as err:
+        if err.name != "gi":
+            raise
+        # PyGObject vem da distro, nao do pip (ver pyproject.toml). O pipx cria um
+        # venv isolado que nao enxerga o python3-gi do sistema — testado num
+        # Ubuntu 24.04 limpo: sem a flag, o usuario recebia so o traceback.
+        print(
+            "clamav-tray: PyGObject (modulo 'gi') nao encontrado.\n"
+            "  1. instale pela distro: sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1\n"
+            "  2. se instalou com pipx, reinstale enxergando os pacotes do sistema:\n"
+            "     pipx uninstall clamav-tray && pipx install --system-site-packages clamav-tray",
+            file=sys.stderr,
+        )
+        return 1
     except RuntimeError as err:
         print(f"clamav-tray: {err}", file=sys.stderr)
         return 1

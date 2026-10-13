@@ -4,12 +4,12 @@ Indicador de bandeja para uma instalação de ClamAV gerenciada por **systemd**.
 Responde, sem abrir terminal: *os serviços estão de pé, tem varredura rodando
 agora, e como terminou a última?*
 
-![Estados do ícone na bandeja](docs/screenshots/tray-states.png)
+![Estados do ícone na bandeja](https://raw.githubusercontent.com/JarnDev/clamav-tray/main/docs/screenshots/tray-states.png)
 
 Um clique abre o estado completo — serviços, varredura, mídia removível e
 quarentena:
 
-![Estados do menu](docs/screenshots/menu-states.png)
+![Estados do menu](https://raw.githubusercontent.com/JarnDev/clamav-tray/main/docs/screenshots/menu-states.png)
 
 > As imagens são renderizações fiéis, montadas a partir da estrutura que o
 > próprio programa produz, com os SVGs do tema Adwaita. Os ícones aparecem
@@ -37,12 +37,20 @@ projeto é justamente ler o estado das unidades.
 ## Instalação
 
 ```sh
-pipx install clamav-tray     # ainda não publicado — por ora: clone e `pipx install .`
+sudo apt install python3-gi gir1.2-ayatanaappindicator3-0.1   # Debian/Ubuntu
+pipx install --system-site-packages clamav-tray
 ```
 
+**`--system-site-packages` é obrigatório.** O PyGObject (`gi`) vem da distro, não
+do pip — compilá-lo num virtualenv exige toolchain e os cabeçalhos do GTK. Sem a
+flag, o venv do pipx não enxerga o `python3-gi` do sistema; o programa detecta
+isso e diz como corrigir.
+
 **Dependências de sistema:** `python3-gi`, GTK 3 e um dos dois AppIndicator
-(`gir1.2-appindicator3-0.1` ou `gir1.2-ayatanaappindicator3-0.1` — o programa
+(`gir1.2-ayatanaappindicator3-0.1` ou `gir1.2-appindicator3-0.1` — o programa
 tenta os dois).
+
+Do código-fonte: clone e `pipx install --system-site-packages .`
 
 ### Subir sozinho no login
 
@@ -54,6 +62,9 @@ tenta os dois).
 Nenhum dos dois precisa de root. Prefira o primeiro: se o processo morrer, ele
 volta, e o journal guarda o motivo. O autostart XDG dispara e esquece — foi assim
 que o indicador que deu origem a este projeto sumiu da bandeja sem deixar rastro.
+
+O instalador e os [extras](https://github.com/JarnDev/clamav-tray/tree/main/contrib/extras) ficam no repositório, não no pacote do PyPI: quem
+instalou por pipx precisa clonar (ou baixar só o `packaging/`) para usá-los.
 
 O instalador funciona **antes** de `pipx install`: sem o `clamav-tray` no PATH,
 ele aponta a unidade para o código no diretório atual. E confere se o serviço
@@ -84,7 +95,7 @@ Metade de cima funciona; a metade da varredura nasce vazia. Não é bug: a distr
 não agenda varredura, e o programa não deve inventar uma.
 
 Para preencher, há extras **opcionais e independentes** em
-[`contrib/extras/`](contrib/extras) — varredura diária, monitor de Downloads,
+[`contrib/extras/`](https://github.com/JarnDev/clamav-tray/tree/main/contrib/extras) — varredura diária, monitor de Downloads,
 varredura de USB e publicação das estatísticas de quarentena. Cada um com
 instalador próprio, que recusa sobrescrever e diz como desinstalar.
 
@@ -107,21 +118,21 @@ language = "pt_BR"   # ou "auto" para seguir o locale
 ```
 
 Para contribuir com um idioma, copie o bloco `pt_BR` em
-[`clamav_tray/i18n.py`](clamav_tray/i18n.py) e traduza — sem instalar ferramenta
+[`clamav_tray/i18n.py`](https://github.com/JarnDev/clamav-tray/blob/main/clamav_tray/i18n.py) e traduza — sem instalar ferramenta
 nenhuma. Não usa gettext de propósito; o porquê está em
-[docs/design.md](docs/design.md).
+[docs/design.md](https://github.com/JarnDev/clamav-tray/blob/main/docs/design.md).
 
 ## Documentação
 
 | | |
 |---|---|
-| [docs/design.md](docs/design.md) | decisões de desenho e o que elas custaram |
-| [docs/dbusmenu.md](docs/dbusmenu.md) | o que atravessa o protocolo do menu, e o que não |
-| [docs/quarantine.md](docs/quarantine.md) | as duas quarentenas e a convenção de estatísticas |
-| [docs/progress.md](docs/progress.md) | progresso por contagem, não por relógio |
-| [docs/removable-media.md](docs/removable-media.md) | detecção sem subprocesso |
-| [ROADMAP.md](ROADMAP.md) | o produto, e a migração para Rust |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | como contribuir |
+| [docs/design.md](https://github.com/JarnDev/clamav-tray/blob/main/docs/design.md) | decisões de desenho e o que elas custaram |
+| [docs/dbusmenu.md](https://github.com/JarnDev/clamav-tray/blob/main/docs/dbusmenu.md) | o que atravessa o protocolo do menu, e o que não |
+| [docs/quarantine.md](https://github.com/JarnDev/clamav-tray/blob/main/docs/quarantine.md) | as duas quarentenas e a convenção de estatísticas |
+| [docs/progress.md](https://github.com/JarnDev/clamav-tray/blob/main/docs/progress.md) | progresso por contagem, não por relógio |
+| [docs/removable-media.md](https://github.com/JarnDev/clamav-tray/blob/main/docs/removable-media.md) | detecção sem subprocesso |
+| [ROADMAP.md](https://github.com/JarnDev/clamav-tray/blob/main/ROADMAP.md) | o produto, e a migração para Rust |
+| [CONTRIBUTING.md](https://github.com/JarnDev/clamav-tray/blob/main/CONTRIBUTING.md) | como contribuir |
 
 ---
 
@@ -138,7 +149,7 @@ até que não sobre Python.
 - Quem instala usa Python e não precisa saber de nada disso
 
 O desenho em módulos existe por causa disso: cada arquivo tem uma fronteira clara
-e pode ser portado sozinho. A ordem e o critério estão no [ROADMAP](ROADMAP.md).
+e pode ser portado sozinho. A ordem e o critério estão no [ROADMAP](https://github.com/JarnDev/clamav-tray/blob/main/ROADMAP.md).
 
 **Se você é contribuidor:** mande PR contra a `main`, em Python. A branch `rust`
 é exercício pessoal e pode ser reescrita à força a qualquer momento.

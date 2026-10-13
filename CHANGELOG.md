@@ -4,8 +4,21 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Pacote no PyPI** (`pipx install --system-site-packages clamav-tray`) e
+  workflow que publica a cada tag `v*`, por publicação confiável (OIDC, sem token
+  guardado). O workflow recusa publicar se a tag, o `pyproject.toml` e o
+  `__version__` não disserem a mesma versão.
+- Sem PyGObject no ambiente, o programa diz como corrigir em vez de despejar um
+  traceback. Testado num Ubuntu 24.04 limpo: era o que acontecia com
+  `pipx install` sem `--system-site-packages`.
+
 ### Alterado
 
+- Links e imagens do README agora são absolutos, para renderizarem no PyPI.
+- Licença no formato SPDX (PEP 639); o formato antigo vira erro no setuptools a
+  partir de fev/2027.
 - **`daily-scan` agora é incremental na maioria dos dias.** Varria a home inteira
   todo dia — medido, 4h40 sobre 1,1 milhão de arquivos, das 03:12 às 07:54, num
   SSD que fica inutilizável enquanto isso. Agora o mesmo timer diário varre só o

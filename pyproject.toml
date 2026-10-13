@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=77"]   # license SPDX (PEP 639)
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,11 +7,11 @@ name = "clamav-tray"
 version = "0.1.0"
 description = "Indicador de bandeja para ClamAV gerenciado por systemd"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"   # tomllib entrou na 3.11
 classifiers = [
     "Environment :: X11 Applications :: GTK",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
     "Topic :: System :: Monitoring",
 ]
