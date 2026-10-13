@@ -1,15 +1,16 @@
 ---
-name: Relato de distro
-about: Testei em outra distribuição
+name: Distro report
+about: I tested on another distribution
 labels: distro
 ---
 
-O projeto foi escrito e usado num Ubuntu. Relato de outra distro ajuda mesmo que
-nada esteja quebrado.
+The project was written and used on Ubuntu, and Fedora and Arch were checked in
+containers. A report from a real install on any distro helps even if nothing is
+broken.
 
-**Distro e versão:**
+**Distro and version:**
 
-**Saída:**
+**Output:**
 
 ```sh
 systemctl list-units --all 'clam*'
@@ -17,4 +18,6 @@ clamconf -n | grep -E 'LocalSocket|LogFile|DatabaseDirectory'
 python3 -m clamav_tray --dump
 ```
 
-**Funcionou?** Se não, o que apareceu errado.
+**Did it work?** If not, what looked wrong.
+
+<!-- Português é bem-vindo. -->

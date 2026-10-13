@@ -1,17 +1,17 @@
 ---
 name: Bug
-about: Algo não funciona como descrito
+about: Something does not work as documented
 labels: bug
 ---
 
-## O que aconteceu
+## What happened
 
-## O que eu esperava
+## What I expected
 
-## Ambiente
+## Environment
 
-Cole a saída destes três comandos — eles respondem quase todas as perguntas que
-eu faria depois:
+Paste the output of these three commands — they answer almost every question I
+would ask next:
 
 ```sh
 python3 -m clamav_tray --dump
@@ -19,9 +19,11 @@ systemctl list-units --all 'clam*'
 echo "$XDG_CURRENT_DESKTOP $XDG_SESSION_TYPE"; gnome-shell --version 2>/dev/null
 ```
 
-## Se for sobre o menu
+## If it is about the menu
 
-Antes de abrir, veja [docs/dbusmenu.md](../../docs/dbusmenu.md): o menu é
-renderizado pelo *shell*, não pelo GTK, e várias coisas não atravessam esse
-protocolo — negrito, cor de texto e tooltip, entre outras. Pode ser limitação
-conhecida em vez de bug.
+Before opening, see [docs/dbusmenu.md](../../docs/dbusmenu.md): the menu is
+rendered by the *shell*, not by GTK, and several things do not cross that
+protocol — bold, text color and tooltips, among others. It may be a known
+limitation rather than a bug.
+
+<!-- Português é bem-vindo. -->
