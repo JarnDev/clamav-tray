@@ -71,3 +71,22 @@ reintroduzi-lo.
   varrer e quando é quem administra a máquina.
 - Reimplementar o que o ClamTk já faz (editar `clamd.conf`, gerenciar quarentena
   por GUI).
+
+## Lançar uma versão (mantenedor)
+
+```sh
+scripts/release.sh 0.3.0 --dry-run   # confere tudo e mostra as notas, sem gravar
+scripts/release.sh 0.3.0             # grava commit + tag assinados e envia, perguntando antes
+```
+
+Antes de gravar qualquer coisa, o script recusa se: o número não for maior que o
+atual ou já aparecer no CHANGELOG; a seção `[Não lançado]` estiver vazia; a árvore
+estiver suja; a `main` local divergir da `origin/main`; o CI do commit não estiver
+verde; ou os testes locais falharem.
+
+Depois ele sobe a versão no `pyproject.toml` e no `__version__`, transforma
+`[Não lançado]` em `[X.Y.Z] — data` (deixando uma `[Não lançado]` vazia em cima) e
+envia por **SSH** — o token HTTPS costuma não ter o escopo `workflow`. A tag
+dispara o `publish.yml`, que **espera aprovação manual** no ambiente `pypi` do
+GitHub antes de publicar. Publicação no PyPI não se desfaz: um número publicado
+nunca mais pode ser reusado, nem depois de apagado.

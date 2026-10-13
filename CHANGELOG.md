@@ -4,6 +4,14 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não lançado]
 
+### Adicionado
+
+- `scripts/release.sh X.Y.Z`: lança uma versão em um comando, com `--dry-run`.
+  Confere antes de gravar (número maior e inédito no CHANGELOG, notas presentes,
+  árvore limpa, sincronizado com a `origin`, CI verde, testes), sobe a versão nos
+  dois arquivos, fecha o CHANGELOG, faz commit e tag assinados e envia por SSH.
+  O ambiente `pypi` agora exige aprovação manual e só aceita tags `v*`.
+
 ## [0.2.0] — 2026-10-13
 
 ### Adicionado
