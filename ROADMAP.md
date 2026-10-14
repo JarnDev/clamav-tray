@@ -73,7 +73,7 @@ logic stays in Python. Merged into `main` only after acceptance tests.
       `--scan-device`).
 - [x] **F2 — read-only extension.** Status-colored icon; panel with header, services and last
       scan. JSON → view model in a pure module tested with `gjs` in CI.
-- [ ] **F3 — live.** Real progress bar, media and quarantine cards; falls back to polling
+- [x] **F3 — live.** Real progress bar, media and quarantine cards; falls back to polling
       `--dump --json` when the state file goes stale.
 - [ ] **F4 — actions.** Panel buttons call the F1 commands.
 - [ ] **F5 — install and docs.** `--show-gnome-extension` / `--install-gnome-extension`,

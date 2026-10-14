@@ -121,6 +121,9 @@ def build(
         "language": i18n.current(),
         # Fuso local e segundos inteiros, como os demais horarios do documento.
         "generated_at": _ts(now or datetime.now(timezone.utc).astimezone().replace(microsecond=0)),
+        # Intervalo entre atualizacoes: quem le o state.json mede "velho" por ele,
+        # e nao por um numero fixo que quebraria com refresh_secs alterado.
+        "refresh_secs": cfg.refresh_secs,
         "status": status(state, result, loose_scan),
         "units": [
             {

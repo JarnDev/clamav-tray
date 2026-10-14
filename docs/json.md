@@ -32,6 +32,7 @@ same output.
   "producer": "tray",
   "language": "en",
   "generated_at": "2026-10-13T18:01:42-03:00",
+  "refresh_secs": 10,
   "status": "ok",
   "units": [
     {
@@ -96,6 +97,7 @@ tray isn't running.
 | `producer` | `"tray"` \| `"dump"` | `tray` = the `state.json` the running tray writes; `dump` = `--dump --json` |
 | `language` | string | resolved interface language (`"en"`, `"pt_BR"`), so whoever draws speaks the same language |
 | `generated_at` | string | ISO 8601. A `state.json` that stops changing means the tray stopped |
+| `refresh_secs` | int | seconds between the tray's refreshes. Readers of `state.json` call it stale after 3 intervals (at least 30 s) |
 | `status` | `"ok"` \| `"busy"` \| `"warn"` \| `"threat"` | the same precedence as the icon: threat > scanning > service down > ok. **No unit found is `warn`**, not `ok` |
 
 `status` does **not** include pending removable media: "pending" depends on what the tray

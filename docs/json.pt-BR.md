@@ -32,6 +32,7 @@ mesma saída.
   "producer": "tray",
   "language": "en",
   "generated_at": "2026-10-13T18:01:42-03:00",
+  "refresh_secs": 10,
   "status": "ok",
   "units": [
     {
@@ -96,6 +97,7 @@ alternativa quando o tray não está rodando.
 | `producer` | `"tray"` \| `"dump"` | `tray` = o `state.json` que o tray em execução grava; `dump` = `--dump --json` |
 | `language` | string | idioma resolvido da interface (`"en"`, `"pt_BR"`), para quem desenha falar a mesma língua |
 | `generated_at` | string | ISO 8601. Um `state.json` que para de mudar significa tray parado |
+| `refresh_secs` | int | segundos entre as atualizações do tray. Quem lê o `state.json` o considera velho depois de 3 intervalos (no mínimo 30 s) |
 | `status` | `"ok"` \| `"busy"` \| `"warn"` \| `"threat"` | a mesma precedência do ícone: ameaça > varrendo > serviço caído > ok. **Nenhuma unidade encontrada é `warn`**, não `ok` |
 
 `status` **não** inclui mídia removível pendente: "pendente" depende do que o tray

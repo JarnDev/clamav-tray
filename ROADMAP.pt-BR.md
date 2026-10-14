@@ -73,7 +73,7 @@ funcionando em qualquer desktop; a extensão só **lê e desenha**, e os botões
       `--stop-scan`, `--scan-device`).
 - [x] **F2 — extensão só leitura.** Ícone com a cor do estado; painel com cabeçalho, serviços e
       última varredura. JSON → modelo de tela num módulo puro testado com `gjs` no CI.
-- [ ] **F3 — ao vivo.** Barra de progresso real, cartões de mídia e quarentena; volta a
+- [x] **F3 — ao vivo.** Barra de progresso real, cartões de mídia e quarentena; volta a
       consultar `--dump --json` quando o arquivo de estado envelhece.
 - [ ] **F4 — ações.** Os botões do painel chamam os comandos da F1.
 - [ ] **F5 — instalação e documentação.** `--show-gnome-extension` / `--install-gnome-extension`,

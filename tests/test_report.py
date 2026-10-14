@@ -55,8 +55,10 @@ def test_formato_e_tipos():
     assert d["schema"] == SCHEMA == 1
     assert d["version"] == "0.3.0"
     # Campos novos nao sobem o schema, mas entram aqui de proposito: cada um e uma
-    # promessa a quem le. (0.5: producer, generated_at, media, quarantine, progress.)
-    assert set(d) == {"schema", "version", "producer", "language", "generated_at", "status",
+    # promessa a quem le. (0.5: producer, generated_at, refresh_secs, media,
+    # quarantine, progress.)
+    assert set(d) == {"schema", "version", "producer", "language", "generated_at",
+                      "refresh_secs", "status",
                       "units", "scan", "media", "quarantine", "paths"}
     unidade = d["units"][0]
     assert set(unidade) == {"id", "label", "kind", "user_scope", "active_state", "sub_state",
@@ -120,6 +122,7 @@ def test_produtor_e_horario_de_geracao():
     assert d["producer"] == "tray"
     assert d["generated_at"] == "2026-10-13T18:00:00-03:00"
     assert build(CFG, _estado(DAEMON), None, LIMPA)["producer"] == "dump"
+    assert d["refresh_secs"] == CFG.refresh_secs
 
 
 def test_progresso_da_varredura_em_curso():

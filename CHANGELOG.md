@@ -20,6 +20,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ready from the program. A stale `state.json` shows "tray not running", never a
   green shield. Text colors measured at 3:1 or more on both the light and the dark
   menu.
+  It is live: a real progress bar (counted files, never an invented percentage)
+  that moves with the panel open, the percentage next to the icon, and cards for
+  removable media and both quarantines. Without a fresh `state.json` it falls
+  back to `clamav-tray --dump --json` — every 30 s at most, one at a time, under a
+  20 s `timeout` — and says the view is a snapshot.
+- `refresh_secs` in the JSON: readers of `state.json` call it stale after 3
+  refreshes (at least 30 s), so a longer interval in the config no longer reads as
+  "tray not running".
 - **`--headless`**: no tray icon, no display needed; keeps refreshing, notifying
   and writing `state.json`. For when the GNOME panel draws instead.
 - **`--scan-home`, `--scan-device <mountpoint|key>`, `--stop-scan`** from the

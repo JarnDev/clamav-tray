@@ -16,9 +16,14 @@ export const ICONS = {
     stale: 'security-medium-symbolic',
 };
 
-// 3 atualizacoes do tray (10 s cada) sem arquivo novo = tray parado. Uma so de
-// atraso acontece com a maquina ocupada; tres, nao.
+// 3 atualizacoes do tray sem arquivo novo = tray parado. Uma so de atraso
+// acontece com a maquina ocupada; tres, nao. O intervalo vem do proprio arquivo
+// (refresh_secs), porque o usuario pode muda-lo; 30 s e o piso.
 export const STALE_SECS = 30;
+
+export function staleAfter(state) {
+    return Math.max(STALE_SECS, 3 * (state?.refresh_secs ?? 10));
+}
 
 const CATALOG = {
     pt_BR: {
@@ -48,6 +53,25 @@ const CATALOG = {
         'stopped': 'parado',
         'failed': 'falhou',
         'waiting': 'aguardando',
+        'clamav-tray not found': 'clamav-tray não encontrado',
+        'tray not running · snapshot from --dump': 'tray parado · retrato via --dump',
+        'In progress': 'Em andamento',
+        'for {duration}': 'há {duration}',
+        '{done} / {total} files': '{done} / {total} arquivos',
+        '{n}/s': '{n}/s',
+        'started outside the tray': 'iniciada fora do tray',
+        'counting files…': 'contando arquivos…',
+        'Devices': 'Dispositivos',
+        'not scanned': 'não varrido',
+        'clean {when}': 'limpo {when}',
+        '{n} threat {when}': '{n} ameaça {when}',
+        '{n} threats {when}': '{n} ameaças {when}',
+        '{n} threat NOT isolated {when}': '{n} ameaça NÃO isolada {when}',
+        '{n} threats NOT isolated {when}': '{n} ameaças NÃO isoladas {when}',
+        'Quarantine': 'Quarentena',
+        'empty': 'vazia',
+        '{n} file': '{n} arquivo',
+        'checked {when}': 'conferida {when}',
     },
 };
 
@@ -60,9 +84,36 @@ export function translator(lang) {
         (cat[key] ?? key).replace(/\{(\w+)\}/g, (_m, k) => String(vars[k] ?? ''));
 }
 
-export function number(n, lang) {
-    const [thousands] = SEPARATORS[lang] ?? SEPARATORS.en;
-    return String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, thousands);
+export function number(n, lang, decimals = 0) {
+    const [thousands, decimal] = SEPARATORS[lang] ?? SEPARATORS.en;
+    const [int, frac] = (decimals ? n.toFixed(decimals) : String(Math.trunc(n))).split('.');
+    const out = int.replace(/\B(?=(\d{3})+(?!\d))/g, thousands);
+    return frac ? `${out}${decimal}${frac}` : out;
+}
+
+// Porte de devices.human_size: "15 GB" e nao "15,0 GB" (casa zerada e ruido).
+export function humanSize(n, lang) {
+    if (!n)
+        return '';
+    for (const [unit, div] of [['TB', 1024 ** 4], ['GB', 1024 ** 3], ['MB', 1024 ** 2]]) {
+        if (n >= div) {
+            const v = n / div;
+            const whole = Math.round(v * 10) / 10 === Math.round(v);
+            return `${whole ? number(Math.round(v), lang) : number(v, lang, 1)} ${unit}`;
+        }
+    }
+    return `${Math.floor(n / 1024)} KB`;
+}
+
+// Porte de quarantine.human_bytes.
+export function humanBytes(n, lang) {
+    if (n < 1024)
+        return `${n} B`;
+    if (n < 1024 ** 2)
+        return `${Math.floor(n / 1024)} KB`;
+    if (n < 1024 ** 3)
+        return `${number(n / 1024 ** 2, lang, 1)} MB`;
+    return `${number(n / 1024 ** 3, lang, 1)} GB`;
 }
 
 export function duration(secs) {
@@ -119,23 +170,139 @@ function unitState(u, t) {
     return t('running');
 }
 
+// Varredura em curso. Fracao so com contagem real (scan.progress); sem ela, a
+// barra fica vazia e o texto diz so o tempo — nunca uma porcentagem inventada.
+function liveScan(state, now, t, lang) {
+    const scan = state.scan ?? {};
+    if (!scan.running)
+        return null;
+    const unit = (state.units ?? []).find(u => u.id === scan.unit && u.running);
+    const elapsed = unit?.started_at
+        ? Math.max(0, Math.round((now - new Date(unit.started_at)) / 1000)) : null;
+    const pr = scan.progress;
+    const fraction = pr && pr.total > 0 ? Math.min(pr.done / pr.total, 1) : null;
+    const lines = [];
+    if (pr && pr.total > 0) {
+        lines.push(t('{done} / {total} files', {done: number(pr.done, lang), total: number(pr.total, lang)}));
+        if (elapsed && pr.done > 0)
+            lines.push(t('{n}/s', {n: number(Math.max(Math.floor(pr.done / elapsed), 1), lang)}));
+    } else if (!scan.outside_systemd) {
+        lines.push(t('counting files…'));
+    }
+    if (scan.outside_systemd)
+        lines.push(t('started outside the tray'));
+    return {
+        fraction,
+        percent: fraction === null ? null : `${Math.floor(fraction * 100)}%`,
+        elapsed: elapsed ? t('for {duration}', {duration: duration(elapsed)}) : null,
+        detail: lines.join(' · '),
+    };
+}
+
+// Midia removivel. `scanned` so existe no state.json do tray (vive na memoria
+// dele); no --dump e sempre null, e "nao varrido" ali seria afirmar o que nao se sabe.
+function mediaRows(state, now, t, lang, fromDump) {
+    return (state.media ?? []).map(m => {
+        let detail = null, tone = 'idle';
+        if (!fromDump) {
+            const sc = m.scanned;
+            if (!sc) {
+                detail = t('not scanned');
+            } else {
+                const when = relativeTime(sc.at, now, t);
+                if (sc.not_contained) {
+                    detail = t(sc.not_contained === 1 ? '{n} threat NOT isolated {when}' : '{n} threats NOT isolated {when}',
+                        {n: number(sc.not_contained, lang), when});
+                    tone = 'threat';
+                } else if (sc.infected) {
+                    detail = t(sc.infected === 1 ? '{n} threat {when}' : '{n} threats {when}',
+                        {n: number(sc.infected, lang), when});
+                    tone = 'threat';
+                } else {
+                    detail = t('clean {when}', {when});
+                    tone = 'ok';
+                }
+            }
+        }
+        return {
+            label: m.label,
+            detail: [humanSize(m.size_bytes, lang), detail].filter(Boolean).join(' · '),
+            tone,
+            mountpoint: m.mountpoint,
+        };
+    });
+}
+
+// Quarentenas que se conhece. null = nao da para saber, e entao a linha some:
+// "0" afirmaria uma quarentena vazia que ninguem conferiu.
+function quarantineRows(state, now, t, lang, userName) {
+    const q = state.quarantine;
+    const rows = [];
+    const files = n => n === 0 ? t('empty') : t(n === 1 ? '{n} file' : '{n} files', {n: number(n, lang)});
+    if (q?.system) {
+        const s = q.system;
+        rows.push({
+            owner: 'root',
+            detail: [files(s.count), s.count && s.bytes ? humanBytes(s.bytes, lang) : null].filter(Boolean).join(' · '),
+            note: s.checked_at ? t('checked {when}', {when: relativeTime(s.checked_at, now, t)}) : null,
+            tone: s.count ? 'warn' : 'ok',
+        });
+    }
+    if (q?.user) {
+        rows.push({
+            owner: userName,
+            detail: files(q.user.count),
+            note: null,
+            tone: q.user.count ? 'warn' : 'ok',
+        });
+    }
+    return rows;
+}
+
+// Texto ao lado do icone na barra, como o do tray: vazio em repouso, "57%"
+// varrendo, "⚠ 2" com ameaca. Indicador que fala o tempo todo vira ruido.
+function panelText(state, live, lang) {
+    if (state.status === 'threat')
+        return `⚠ ${number(state.scan?.infected ?? 0, lang)}`;
+    if (live)
+        return live.percent ?? '';
+    return '';
+}
+
 // state: o JSON (objeto), ou null se nao havia arquivo. now: Date.
 // fallbackLang: idioma da sessao, usado quando nao ha arquivo (sem `language`).
-export function viewModel(state, now, fallbackLang = 'en') {
+// opts.userName: dono da quarentena do usuario. opts.reason: por que nao ha
+// estado ('no-command' = nem state.json nem clamav-tray para o --dump).
+export function viewModel(state, now, fallbackLang = 'en', opts = {}) {
     const lang = state?.language ?? fallbackLang;
     const t = translator(lang);
 
-    const labels = {services: t('Services'), lastScan: t('Last scan'), nextScan: t('Next scan')};
+    const labels = {
+        services: t('Services'), lastScan: t('Last scan'), nextScan: t('Next scan'),
+        live: t('In progress'), devices: t('Devices'), quarantine: t('Quarantine'),
+    };
+    // Saida do --dump acabou de ser gerada pela propria extensao: nunca e velha.
+    const fromDump = state?.producer === 'dump';
     const ageSecs = state ? (now - new Date(state.generated_at)) / 1000 : Infinity;
-    if (!state || ageSecs > STALE_SECS) {
+    if (!state || (!fromDump && !(ageSecs <= staleAfter(state)))) {
+        let subtitle = '';
+        if (state)
+            subtitle = t('no update for {n} min', {n: Math.max(1, Math.round(ageSecs / 60))});
+        else if (opts.reason === 'no-command')
+            subtitle = t('clamav-tray not found');
         return {
             status: 'stale',
             icon: ICONS.stale,
+            panelText: '',
             title: t('Tray not running'),
-            subtitle: state ? t('no update for {n} min', {n: Math.max(1, Math.round(ageSecs / 60))}) : '',
+            subtitle,
+            live: null,
             services: [],
             lastScan: null,
             nextScan: null,
+            media: [],
+            quarantine: [],
+            footer: null,
             labels,
         };
     }
@@ -153,12 +320,17 @@ export function viewModel(state, now, fallbackLang = 'en') {
     else if (state.status === 'ok')
         subtitle = t('all services running');
 
+    const live = liveScan(state, now, t, lang);
+    if (state.status === 'busy' && live?.elapsed)
+        subtitle = live.elapsed;
+
     // Proxima varredura: o timer que dispara mais cedo.
     const next = units.map(u => u.next_run).filter(Boolean).sort()[0] ?? null;
 
     return {
         status: state.status,
         icon: ICONS[state.status] ?? ICONS.warn,
+        panelText: panelText(state, live, lang),
         title: t(titles[state.status] ?? 'Attention'),
         subtitle,
         services: units.map(u => ({
@@ -174,6 +346,12 @@ export function viewModel(state, now, fallbackLang = 'en') {
             alarming: state.scan.verdict === 'infected',
         },
         nextScan: relativeTime(next, now, t),
+        live,
+        media: mediaRows(state, now, t, lang, fromDump),
+        quarantine: quarantineRows(state, now, t, lang, opts.userName ?? 'user'),
+        // Sem o tray, nao ha progresso, notificacao nem varredura sob demanda
+        // acompanhada: o painel mostra o retrato e diz de onde ele veio.
+        footer: fromDump ? t('tray not running · snapshot from --dump') : null,
         labels,
     };
 }

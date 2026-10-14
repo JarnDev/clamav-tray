@@ -29,3 +29,22 @@
 .clamav-tray-strong { font-weight: bold; }
 .clamav-tray-dim { font-size: 0.9em; padding-top: 2px; }
 .clamav-tray-dot { padding-right: 8px; }
+/* Detalhe a direita nunca encosta no nome ("BACKUP1,8 TB"). */
+.clamav-tray-detail { padding-left: 16px; }
+
+/* Texto ao lado do icone (barra escura nos dois temas, como o icone). */
+.clamav-tray-panel-text { padding-left: 4px; }
+
+/* Barra de progresso: trilho neutro e preenchimento no azul de "varrendo", que
+   passa de 3:1 nos dois temas (elemento grafico, mesma regra do texto colorido). */
+.clamav-tray-bar {
+    height: 6px;
+    margin-top: 6px;
+    margin-bottom: 4px;
+    border-radius: 3px;
+    background-color: rgba(127, 127, 127, 0.3);
+}
+.clamav-tray-bar-fill {
+    border-radius: 3px;
+    background-color: #3584e4;
+}

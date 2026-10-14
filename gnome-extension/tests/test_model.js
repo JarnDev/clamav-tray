@@ -105,6 +105,86 @@ caso('duracao e data distante', () => {
     igual(M.relativeTime('2026-10-09T03:00:00-03:00', AGORA, M.translator('en')), '09/10 03:00');
 });
 
+// ---- F3: ao vivo, midia, quarentena, --dump
+
+const varrendo = (scan = {}) => base({
+    status: 'busy',
+    units: [...base().units, {id: 'clamav-scan.service', label: 'Scan', kind: 'job', healthy: true,
+        running: true, active_state: 'active', started_at: '2026-10-13T17:00:00-03:00', next_run: null}],
+    scan: {...base().scan, running: true, progress: {done: 571234, total: 1000000}, ...scan},
+});
+
+caso('varredura com contagem: barra, taxa e tempo', () => {
+    const v = M.viewModel(varrendo(), AGORA);
+    igual([v.title, v.subtitle, v.panelText], ['Scanning', 'for 1h00', '57%']);
+    igual(v.live.fraction, 0.571234);
+    igual(v.live.detail, '571,234 / 1,000,000 files · 158/s');
+});
+
+caso('varredura sem contagem: sem porcentagem inventada', () => {
+    const v = M.viewModel(varrendo({progress: null}), AGORA);
+    igual([v.live.fraction, v.live.percent, v.panelText], [null, null, '']);
+    igual(v.live.detail, 'counting files…');
+});
+
+caso('varredura fora do systemd', () => {
+    const v = M.viewModel(varrendo({progress: null, unit: null, outside_systemd: true}), AGORA);
+    igual([v.live.elapsed, v.live.detail], [null, 'started outside the tray']);
+});
+
+caso('ameaca na barra mostra a contagem', () => {
+    const v = M.viewModel(base({status: 'threat', scan: {...base().scan, verdict: 'infected', infected: 3}}), AGORA);
+    igual(v.panelText, '⚠ 3');
+    igual(M.viewModel(base(), AGORA).panelText, '');
+});
+
+const PEN = {key: '/dev/sdc1:/media/u/PEN', label: 'PEN', mountpoint: '/media/u/PEN', size_bytes: 16 * 1024 ** 3};
+caso('midia: nao varrida, limpa e ameaca nao isolada', () => {
+    const media = [
+        {...PEN, scanned: null},
+        {...PEN, label: 'HD', size_bytes: 1.5 * 1024 ** 4, scanned: {at: '2026-10-13T17:00:00-03:00', infected: 0, not_contained: 0}},
+        {...PEN, label: 'CD', size_bytes: null, scanned: {at: '2026-10-13T17:00:00-03:00', infected: 1, not_contained: 1}},
+    ];
+    const v = M.viewModel(base({media, language: 'pt_BR'}), AGORA);
+    igual(v.media.map(m => [m.label, m.detail, m.tone]), [
+        ['PEN', '16 GB · não varrido', 'idle'],
+        ['HD', '1,5 TB · limpo hoje 17:00', 'ok'],
+        ['CD', '1 ameaça NÃO isolada hoje 17:00', 'threat'],
+    ]);
+});
+
+caso('quarentena: so o que se sabe', () => {
+    const quarantine = {system: {count: 2, bytes: 2178432, checked_at: '2026-10-13T03:00:00-03:00'}, user: {count: 0}};
+    const v = M.viewModel(base({quarantine}), AGORA, 'en', {userName: 'ana'});
+    igual(v.quarantine.map(q => [q.owner, q.detail, q.note, q.tone]), [
+        ['root', '2 files · 2.1 MB', 'checked today 03:00', 'warn'],
+        ['ana', 'empty', null, 'ok'],
+    ]);
+    igual(M.viewModel(base({quarantine: {system: null, user: null}}), AGORA).quarantine, []);
+    igual(M.viewModel(base({quarantine: null}), AGORA).quarantine, []);
+});
+
+caso('--dump: nunca velho, avisa a origem e nao inventa "nao varrido"', () => {
+    const v = M.viewModel(base({producer: 'dump', generated_at: '2026-10-13T10:00:00-03:00', media: [{...PEN, scanned: null}]}), AGORA);
+    igual([v.status, v.footer], ['ok', 'tray not running · snapshot from --dump']);
+    igual(v.media[0].detail, '16 GB');
+});
+
+caso('sem clamav-tray para o --dump, diz o motivo', () => {
+    igual(M.viewModel(null, AGORA, 'pt_BR', {reason: 'no-command'}).subtitle, 'clamav-tray não encontrado');
+});
+
+caso('refresh_secs maior estica o limite de velho', () => {
+    const s = base({refresh_secs: 60, generated_at: '2026-10-13T17:57:30-03:00'});
+    igual(M.viewModel(s, AGORA).status, 'ok');
+    igual(M.staleAfter(null), 30);
+});
+
+caso('tamanhos como no Python', () => {
+    igual([M.humanSize(15 * 1024 ** 3, 'pt_BR'), M.humanSize(14.9 * 1024 ** 3, 'pt_BR'), M.humanSize(0, 'en')], ['15 GB', '14,9 GB', '']);
+    igual([M.humanBytes(512, 'en'), M.humanBytes(4096, 'en'), M.humanBytes(3 * 1024 ** 3, 'pt_BR')], ['512 B', '4 KB', '3,0 GB']);
+});
+
 print(falhas ? `\nFALHOU — ${falhas} falha(s)` : '\nOK — 0 falha(s)');
 if (falhas)
     System.exit(1);
