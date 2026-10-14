@@ -30,6 +30,7 @@ same output.
   "schema": 1,
   "version": "0.5.0",
   "producer": "tray",
+  "language": "en",
   "generated_at": "2026-10-13T18:01:42-03:00",
   "status": "ok",
   "units": [
@@ -93,6 +94,7 @@ tray isn't running.
 | `schema` | int | version of this format |
 | `version` | string | version of clamav-tray that produced it |
 | `producer` | `"tray"` \| `"dump"` | `tray` = the `state.json` the running tray writes; `dump` = `--dump --json` |
+| `language` | string | resolved interface language (`"en"`, `"pt_BR"`), so whoever draws speaks the same language |
 | `generated_at` | string | ISO 8601. A `state.json` that stops changing means the tray stopped |
 | `status` | `"ok"` \| `"busy"` \| `"warn"` \| `"threat"` | the same precedence as the icon: threat > scanning > service down > ok. **No unit found is `warn`**, not `ok` |
 

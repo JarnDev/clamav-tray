@@ -71,7 +71,7 @@ funcionando em qualquer desktop; a extensão só **lê e desenha**, e os botões
       cada atualização; campos novos no JSON (`scan.progress`, `media`, `quarantine`) sem subir
       o schema; `--headless` (sem ícone na bandeja) e comandos de ação (`--scan-home`,
       `--stop-scan`, `--scan-device`).
-- [ ] **F2 — extensão só leitura.** Ícone com a cor do estado; painel com cabeçalho, serviços e
+- [x] **F2 — extensão só leitura.** Ícone com a cor do estado; painel com cabeçalho, serviços e
       última varredura. JSON → modelo de tela num módulo puro testado com `gjs` no CI.
 - [ ] **F3 — ao vivo.** Barra de progresso real, cartões de mídia e quarentena; volta a
       consultar `--dump --json` quando o arquivo de estado envelhece.

@@ -71,7 +71,7 @@ logic stays in Python. Merged into `main` only after acceptance tests.
       every refresh; new JSON fields (`scan.progress`, `media`, `quarantine`) without a schema
       bump; `--headless` (no tray icon) and action commands (`--scan-home`, `--stop-scan`,
       `--scan-device`).
-- [ ] **F2 — read-only extension.** Status-colored icon; panel with header, services and last
+- [x] **F2 — read-only extension.** Status-colored icon; panel with header, services and last
       scan. JSON → view model in a pure module tested with `gjs` in CI.
 - [ ] **F3 — live.** Real progress bar, media and quarantine cards; falls back to polling
       `--dump --json` when the state file goes stale.

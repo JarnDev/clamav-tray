@@ -1,0 +1,31 @@
+/* Duas familias de cor, porque os fundos sao diferentes:
+
+   ICONE na barra: a barra superior do GNOME e escura nos dois temas, entao as
+   cores vivas do Adwaita servem (o simbolico toma a `color` do St.Icon).
+
+   TEXTO no painel: o menu e claro num tema e escuro no outro, e nenhuma cor
+   unica passa de 4,5:1 nos dois. Medido contra #fafafa e #383838: estes tons
+   ficam acima de 3:1 em ambos, o minimo da WCAG para texto grande/negrito e
+   elementos graficos — e e so isso que leva cor aqui (titulo, veredito, bolinha).
+   Texto comum nao leva cor nenhuma: herda a do tema, que ja tem o contraste certo.
+     verde #26a269 3,1/3,6   vermelho #f0503a 3,4/3,3
+     aviso #cd7a00 3,2/3,6   azul    #3584e4 3,6/3,1 */
+
+.clamav-tray-icon-ok { color: #33d17a; }
+.clamav-tray-icon-busy { color: #62a0ea; }
+.clamav-tray-icon-warn { color: #f6d32d; }
+.clamav-tray-icon-threat { color: #ff7b63; }
+.clamav-tray-icon-stale { color: #9a9996; }
+
+.clamav-tray-ok { color: #26a269; }
+.clamav-tray-busy { color: #3584e4; }
+.clamav-tray-warn { color: #cd7a00; }
+.clamav-tray-threat { color: #f0503a; font-weight: bold; }
+.clamav-tray-stale { color: inherit; }
+
+.clamav-tray-head { padding-top: 8px; padding-bottom: 8px; }
+.clamav-tray-title { font-size: 1.15em; font-weight: bold; }
+.clamav-tray-subtitle { padding-top: 2px; }
+.clamav-tray-strong { font-weight: bold; }
+.clamav-tray-dim { font-size: 0.9em; padding-top: 2px; }
+.clamav-tray-dot { padding-right: 8px; }

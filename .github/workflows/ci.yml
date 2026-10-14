@@ -41,6 +41,12 @@ jobs:
         run: |
           pip install -q pyflakes
           if python -m pyflakes clamav_tray tests | grep -E "undefined name|referenced before assignment"; then exit 1; fi
+      - name: Modelo da extensao GNOME (gjs)
+        # model.js e funcao pura: roda no gjs sem shell. TZ fixo porque o horario
+        # relativo ("hoje 07:54") depende do fuso.
+        run: |
+          sudo apt-get install -y -qq gjs >/dev/null
+          TZ=America/Sao_Paulo gjs -m gnome-extension/tests/test_model.js
       - name: Docs EN e PT-BR em sincronia
         # Cada X.md tem um X.pt-BR.md ao lado (exceto o CHANGELOG, so em ingles).
         # Mesmo numero de titulos e de blocos de codigo nos dois: pega "mudou um

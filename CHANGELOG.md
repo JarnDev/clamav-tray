@@ -12,6 +12,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   which media it scanned this session. New fields (`producer`, `generated_at`,
   `scan.progress`, `media`, `quarantine`) — no `schema` bump, since nothing
   changed meaning.
+- `language` in the JSON: the resolved interface language, so whoever draws the
+  state speaks the same language.
+- **GNOME Shell extension (in development, GNOME 46)** in `gnome-extension/`: a
+  status-colored shield in the top bar and a panel with state, last and next scan
+  and services, drawn from `state.json`. It only draws — every decision comes
+  ready from the program. A stale `state.json` shows "tray not running", never a
+  green shield. Text colors measured at 3:1 or more on both the light and the dark
+  menu.
 - **`--headless`**: no tray icon, no display needed; keeps refreshing, notifying
   and writing `state.json`. For when the GNOME panel draws instead.
 - **`--scan-home`, `--scan-device <mountpoint|key>`, `--stop-scan`** from the

@@ -5,6 +5,7 @@
 #
 #   scripts/dev-nested-shell.sh            abre e fica ate fechar a janela
 #   scripts/dev-nested-shell.sh 20         fecha sozinho depois de 20 s (testes)
+#   CLAMAV_TRAY_DEV_DARK=1 ...             tema escuro (o padrao e o claro)
 #   scripts/dev-nested-shell.sh ciclo      sobe, desliga e religa a extensao 3x,
 #                                          e fecha: prova que disable() limpa tudo
 #
@@ -24,9 +25,11 @@ ln -s "$RAIZ/gnome-extension/$UUID" "$DEV/data/gnome-shell/extensions/$UUID"
 export XDG_CONFIG_HOME="$DEV/config" XDG_DATA_HOME="$DEV/data" XDG_CACHE_HOME="$DEV/cache"
 export MUTTER_DEBUG_DUMMY_MODE_SPECS="${CLAMAV_TRAY_DEV_SIZE:-1280x800}"
 
+ESQUEMA=default; [ -n "${CLAMAV_TRAY_DEV_DARK:-}" ] && ESQUEMA=prefer-dark
 PREPARO="gsettings set org.gnome.shell disable-user-extensions false
 gsettings set org.gnome.shell enabled-extensions \"['$UUID']\"
-gsettings set org.gnome.shell welcome-dialog-last-shown-version '999'"
+gsettings set org.gnome.shell welcome-dialog-last-shown-version '999'
+gsettings set org.gnome.desktop.interface color-scheme $ESQUEMA"
 
 if [ "$SEGUNDOS" = ciclo ]; then
     # gnome-extensions fala com o shell pelo barramento DESTA sessao isolada.

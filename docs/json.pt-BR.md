@@ -30,6 +30,7 @@ mesma saída.
   "schema": 1,
   "version": "0.5.0",
   "producer": "tray",
+  "language": "en",
   "generated_at": "2026-10-13T18:01:42-03:00",
   "status": "ok",
   "units": [
@@ -93,6 +94,7 @@ alternativa quando o tray não está rodando.
 | `schema` | int | versão deste formato |
 | `version` | string | versão do clamav-tray que gerou |
 | `producer` | `"tray"` \| `"dump"` | `tray` = o `state.json` que o tray em execução grava; `dump` = `--dump --json` |
+| `language` | string | idioma resolvido da interface (`"en"`, `"pt_BR"`), para quem desenha falar a mesma língua |
 | `generated_at` | string | ISO 8601. Um `state.json` que para de mudar significa tray parado |
 | `status` | `"ok"` \| `"busy"` \| `"warn"` \| `"threat"` | a mesma precedência do ícone: ameaça > varrendo > serviço caído > ok. **Nenhuma unidade encontrada é `warn`**, não `ok` |
 

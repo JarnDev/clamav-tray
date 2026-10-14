@@ -168,6 +168,11 @@ def _(text: str, **kwargs) -> str:
     return out.format(**kwargs) if kwargs else out
 
 
+def current() -> str:
+    """Codigo do idioma ativo ("en", "pt_BR")."""
+    return _code
+
+
 def number(value: float, decimals: int = 0) -> str:
     """1131791 -> "1,131,791" (en) / "1.131.791" (pt_BR); 14.9 -> "14.9" / "14,9"."""
     milhar, decimal = SEPARATORS.get(_code, SEPARATORS[DEFAULT])

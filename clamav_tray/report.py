@@ -19,7 +19,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import progress as progress_mod
+from . import i18n, progress as progress_mod
 from .config import Config
 from .scan import ScanResult
 from .units import Unit
@@ -117,6 +117,8 @@ def build(
         # Quem gerou e quando: o leitor do state.json precisa saber se o tray
         # ainda esta vivo — arquivo velho e tray parado.
         "producer": producer,
+        # Idioma resolvido da interface, para quem desenha falar a mesma lingua.
+        "language": i18n.current(),
         # Fuso local e segundos inteiros, como os demais horarios do documento.
         "generated_at": _ts(now or datetime.now(timezone.utc).astimezone().replace(microsecond=0)),
         "status": status(state, result, loose_scan),

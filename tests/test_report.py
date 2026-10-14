@@ -56,8 +56,8 @@ def test_formato_e_tipos():
     assert d["version"] == "0.3.0"
     # Campos novos nao sobem o schema, mas entram aqui de proposito: cada um e uma
     # promessa a quem le. (0.5: producer, generated_at, media, quarantine, progress.)
-    assert set(d) == {"schema", "version", "producer", "generated_at", "status", "units",
-                      "scan", "media", "quarantine", "paths"}
+    assert set(d) == {"schema", "version", "producer", "language", "generated_at", "status",
+                      "units", "scan", "media", "quarantine", "paths"}
     unidade = d["units"][0]
     assert set(unidade) == {"id", "label", "kind", "user_scope", "active_state", "sub_state",
                             "result", "healthy", "running", "exit_status", "started_at",
